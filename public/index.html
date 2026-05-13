@@ -535,6 +535,9 @@ function showResults(results) {
   container.querySelectorAll('.ri-dl-btn').forEach(btn => {
     btn.addEventListener('click', (ev) => {
       ev.stopPropagation();
+      const item = btn.closest('.result-item');
+      container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
+      item.classList.add('active');
       state.selectedIdx = parseInt(btn.dataset.idx);
       startDownloadManual();
     });
@@ -621,6 +624,10 @@ function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
   $('dlSteps').querySelectorAll('.dl-step').forEach(s => { s.className = 'dl-step'; });
   const searchStep = $('dlSteps').querySelector('[data-step="search"]');
   if (searchStep) searchStep.classList.add('active');
+  if (manualMetadata) {
+    const metaStep = $('dlSteps').querySelector('[data-step="metadata"]');
+    if (metaStep) metaStep.classList.add('active');
+  }
 
   api('/api/download', {
     method: 'POST', body: JSON.stringify({ query, videoUrl, title, uploader, manualMetadata })

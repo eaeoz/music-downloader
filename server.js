@@ -20,7 +20,7 @@ if (!fs.existsSync(DOWNLOADS_DIR)) fs.mkdirSync(DOWNLOADS_DIR, { recursive: true
 
 const { searchYouTube, downloadYouTubeAudioWithTemp } = require('track-dl/lib/youtube');
 const { mergeMetadata } = require('track-dl/lib/merger');
-const { findBestSongMatch } = require('track-dl/lib/metadata');
+const { findBestSongMatch, fetchSongInfo, parseYouTubeTitle } = require('track-dl/lib/metadata');
 
 const downloadEmitters = {};
 let downloadIdCounter = 0;
@@ -139,7 +139,18 @@ app.post('/api/download', async (req, res) => {
 
       let bestMatch;
       if (manualMetadata) {
-        bestMatch = { artist: manualMetadata.artist || uploader, title: manualMetadata.title || title, album: '', year: '', genre: '', coverUrl: '', video: { url: videoUrl, title, uploader } };
+        let songInfo = null;
+        try { songInfo = await Promise.race([fetchSongInfo(query), new Promise(r => setTimeout(() => r(null), 6000))]); } catch (_) {}
+        const parsed = parseYouTubeTitle(title);
+        bestMatch = {
+          artist: songInfo?.artist || parsed.artist || uploader,
+          title: songInfo?.title || parsed.title || title,
+          album: songInfo?.album || '',
+          year: songInfo?.year || '',
+          genre: songInfo?.genre || '',
+          coverUrl: songInfo?.coverUrl || '',
+          video: { url: videoUrl, title, uploader }
+        };
       } else {
         const results = await searchYouTube(query, 5);
         if (results.length) {

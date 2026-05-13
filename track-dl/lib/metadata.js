@@ -26,7 +26,7 @@ function parseYouTubeTitle(title) {
   return { artist: '', title: cleanTitle };
 }
 
-async function httpGet(url) {
+async function httpGet(url, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, (res) => {
       let data = '';
@@ -34,6 +34,7 @@ async function httpGet(url) {
       res.on('end', () => resolve(data));
     });
     req.on('error', reject);
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('timeout')); });
   });
 }
 
@@ -187,4 +188,4 @@ async function findBestSongMatch(userQuery, youtubeResults) {
   };
 }
 
-module.exports = { findBestSongMatch };
+module.exports = { findBestSongMatch, fetchSongInfo, parseYouTubeTitle };
