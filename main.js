@@ -151,7 +151,7 @@ function createWindow() {
 
   const winState = getWindowState();
   const defaultWidth = 550;
-  const defaultHeight = 700;
+  const defaultHeight = 360;
 
   let winX = undefined;
   let winY = undefined;
