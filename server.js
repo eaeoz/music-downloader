@@ -161,6 +161,7 @@ app.post('/api/download', async (req, res) => {
         '--newline', '--progress', '--no-warnings'];
 
       await execSpawn(YTDLP_PATH, ytdlpArgs, emitter, 'download');
+      emitter.emit('progress', { stage: 'extract', message: 'Audio extracted successfully' });
 
       const possibleExts = ['.mp3', '.m4a', '.webm', '.opus', '.aac'];
       let tempAudioPath = null;

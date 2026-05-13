@@ -619,6 +619,8 @@ function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
   $('dlProgressBar').style.width = '0%';
   $('dlDetail').textContent = '';
   $('dlSteps').querySelectorAll('.dl-step').forEach(s => { s.className = 'dl-step'; });
+  const searchStep = $('dlSteps').querySelector('[data-step="search"]');
+  if (searchStep) searchStep.classList.add('active');
 
   api('/api/download', {
     method: 'POST', body: JSON.stringify({ query, videoUrl, title, uploader, manualMetadata })
@@ -643,17 +645,20 @@ function listenProgress(id) {
 function updateProgressUI(data) {
   const { stage, message, progress } = data;
   if (stage === 'done' || stage === 'error') {
-    $('dlSteps').querySelectorAll('.dl-step').forEach(s => { if (s.dataset.step !== stage) s.classList.add('done'); });
+    $('dlSteps').querySelectorAll('.dl-step').forEach(s => { if (s.dataset.step !== stage) { s.classList.remove('active'); s.classList.add('done'); } });
   }
   const stepEl = $('dlSteps').querySelector(`[data-step="${stage}"]`);
   if (stepEl) {
-    if (stage === 'done') stepEl.classList.add('done');
+    if (stage !== 'done' && stage !== 'error') {
+      $('dlSteps').querySelectorAll('.dl-step.active').forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
+    }
+    if (stage === 'done') stepEl.classList.add('active');
     else if (stage === 'error') stepEl.classList.add('error');
     else stepEl.classList.add('active');
   }
   if (progress !== undefined) $('dlProgressBar').style.width = Math.min(progress, 99) + '%';
   if (message) $('dlDetail').textContent = message;
-  if (stage === 'done') setTimeout(finishDownload, 800);
+  if (stage === 'done') { setTimeout(() => { const d = $('dlSteps').querySelector('[data-step="done"]'); if (d) { d.classList.remove('active'); d.classList.add('done'); } setTimeout(finishDownload, 400); }, 400); }
   else if (stage === 'error') handleDownloadError(message);
 }
 
