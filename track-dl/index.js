@@ -11,6 +11,7 @@ const packageJson = require('./package.json');
 
 async function updateYtDlp() {
   const exePath = path.join(__dirname, 'yt-dlp.exe');
+  const tmpPath = exePath + '.tmp';
   console.log('Downloading yt-dlp.exe...');
 
   function download(url) {
@@ -19,21 +20,23 @@ async function updateYtDlp() {
         if (response.statusCode === 302 && response.headers.location) {
           download(response.headers.location).then(resolve).catch(reject);
         } else {
-          const file = fs.createWriteStream(exePath);
+          const file = fs.createWriteStream(tmpPath);
           response.pipe(file);
           file.on('finish', () => {
             file.close();
+            fs.renameSync(tmpPath, exePath);
             console.log('yt-dlp.exe downloaded');
             resolve();
           });
         }
       }).on('error', (err) => {
-        fs.unlink(exePath, () => {});
+        if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
         reject(err);
       });
     });
   }
 
+  if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
   await download('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe');
 }
 

@@ -110,7 +110,7 @@ app.post('/api/search', async (req, res) => {
 
   try {
     const results = await searchYouTube(query, 5);
-    if (!results.length) return res.json({ results: [], bestMatch: null });
+    if (!results.length) return res.json({ results: [], bestMatch: null, noResults: true });
 
     if (mode === 'auto') {
       const bestMatch = await findBestSongMatch(query, results);
@@ -152,13 +152,18 @@ app.post('/api/download', async (req, res) => {
           video: { url: videoUrl, title, uploader }
         };
       } else {
-        const results = await searchYouTube(query, 5);
-        if (results.length) {
-          bestMatch = await findBestSongMatch(query, results);
-        } else {
-          emitter.emit('progress', { stage: 'error', message: 'No YouTube results found' });
-          return;
-        }
+        let songInfo = null;
+        try { songInfo = await Promise.race([fetchSongInfo(query), new Promise(r => setTimeout(() => r(null), 6000))]); } catch (_) {}
+        const parsed = parseYouTubeTitle(title);
+        bestMatch = {
+          artist: songInfo?.artist || parsed.artist || uploader,
+          title: songInfo?.title || parsed.title || title,
+          album: songInfo?.album || '',
+          year: songInfo?.year || '',
+          genre: songInfo?.genre || '',
+          coverUrl: songInfo?.coverUrl || '',
+          video: { url: videoUrl, title, uploader }
+        };
       }
 
       emitter.emit('progress', { stage: 'metadata', message: `Matched: ${bestMatch.artist} - ${bestMatch.title}` });
@@ -286,8 +291,17 @@ app.post('/api/update-ytdlp', (req, res) => {
       });
 
       child.on('close', (code) => {
-        if (code === 0) emitter.emit('progress', { stage: 'done', message: 'yt-dlp updated successfully!' });
-        else emitter.emit('progress', { stage: 'error', message: `Update failed (exit code ${code})` });
+        if (code === 0) {
+          const ytPath = path.join(TRACK_DL_DIR, 'yt-dlp.exe');
+          const stat = fs.statSync(ytPath, { throwIfNoEntry: false });
+          if (!stat || stat.size < 1000000) {
+            emitter.emit('progress', { stage: 'error', message: 'Update failed: downloaded file is missing or too small' });
+            return;
+          }
+          emitter.emit('progress', { stage: 'done', message: 'yt-dlp updated successfully!' });
+        } else {
+          emitter.emit('progress', { stage: 'error', message: `Update failed (exit code ${code})` });
+        }
       });
 
       child.on('error', (e) => {

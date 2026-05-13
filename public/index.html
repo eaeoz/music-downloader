@@ -592,7 +592,11 @@ async function startDownload() {
   searchInput.disabled = true;
   const searchRes = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'auto' }) });
   if (!searchRes || !searchRes.bestMatch) {
-    showToast('No matching song found', 'error');
+    if (searchRes?.noResults) {
+      showToast('No YouTube results found', 'error');
+    } else {
+      showToast('No matching song found', 'error');
+    }
     state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false; searchInput.focus();
     return;
   }
