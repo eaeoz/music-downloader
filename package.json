@@ -9,12 +9,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/eaeoz/track-dl.git"
+    "url": "https://github.com/eaeoz/music-downloader.git"
   },
   "bugs": {
-    "url": "https://github.com/eaeoz/track-dl/issues"
+    "url": "https://github.com/eaeoz/music-downloader/issues"
   },
-  "homepage": "https://github.com/eaeoz/track-dl",
+  "homepage": "https://github.com/eaeoz/music-downloader",
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",

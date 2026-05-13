@@ -379,7 +379,7 @@ body{
     <div class="dl-title">Updating yt-dlp...</div>
     <div class="dl-steps">
       <div class="dl-step active" data-step="update"><span class="step-icon"><i class="fas fa-download"></i></span> <span id="updateStatus">Downloading latest yt-dlp.exe...</span></div>
-      <div class="dl-step" data-step="done"><span class="step-icon"><i class="fas fa-check-circle"></i></span> Update complete!</div>
+      <div class="dl-step" data-step="done"><span class="step-icon"><i class="fas fa-check-circle"></i></span>Hang tight!</div>
     </div>
   </div>
 </div>
@@ -831,7 +831,7 @@ $('folderBtn').addEventListener('click', async () => {
 api('/api/version').then(r => {
   if (r && r.version) $('versionLabel').textContent = 'v' + r.version;
 });
-$('githubLink').href = 'https://github.com/eaeoz/track-dl';
+$('githubLink').href = 'https://github.com/eaeoz/music-downloader';
 
 (async function init() {
   loadDlHistory();
