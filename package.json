@@ -1,0 +1,90 @@
+{
+  "name": "music-downloader",
+  "version": "1.0.0",
+  "description": "Modern music downloader powered by track-dl",
+  "main": "main.js",
+  "author": {
+    "name": "Sedat Ergoz",
+    "email": "sedatergoz@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eaeoz/track-dl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eaeoz/track-dl/issues"
+  },
+  "homepage": "https://github.com/eaeoz/track-dl",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron .",
+    "build": "npm run build:icon && npx electron-builder --win --x64 --publish never",
+    "build:portable": "npx electron-builder --win portable --x64 --publish never",
+    "build:setup": "npx electron-builder --win nsis --x64 --publish never",
+    "build:icon": "node create-icon.js",
+    "build:all": "npm run build:icon && npx electron-builder --win --x64 --publish never"
+  },
+  "build": {
+    "appId": "com.musicdownloader.app",
+    "productName": "Music Downloader",
+    "copyright": "Copyright © 2026 Sedat Ergoz",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "track-dl",
+        "to": "track-dl",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": false,
+    "win": {
+      "icon": "data/icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "installerIcon": "data/icon.ico",
+      "uninstallerIcon": "data/icon.ico",
+      "installerHeaderIcon": "data/icon.ico",
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "shortcutName": "Music Downloader"
+    },
+    "portable": {
+      "artifactName": "${productName}_portable_${version}.${ext}"
+    }
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "track-dl": "^1.0.13"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "keywords": [
+    "music",
+    "downloader",
+    "youtube",
+    "mp3",
+    "track-dl"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,32 @@
+{
+  "name": "track-dl",
+  "version": "1.0.13",
+  "description": "Search and download music from YouTube using AI",
+  "main": "index.js",
+  "bin": {
+    "track-dl": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "postinstall": "node -e \"const fs=require('fs');const https=require('https');const path=require('path');const file=path.join(__dirname,'yt-dlp.exe');function download(u){https.get(u,(r)=>{if(r.statusCode===302&&r.headers.location){download(r.headers.location)}else{r.pipe(fs.createWriteStream(file)).on('finish',()=>console.log('Downloaded yt-dlp.exe'))}}).on('error',()=>fs.existsSync(file)&&fs.unlinkSync(file))}if(!fs.existsSync(file)){download('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe')}\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "track-dl",
+    "youtube",
+    "download",
+    "music",
+    "mp3",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "ffmpeg-static": "^5.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eaeoz/track-dl.git"
+  }
+}

@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music DL</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg2: #12121a;
+  --surface: #1a1a28;
+  --surface2: #22223a;
+  --border: #2a2a44;
+  --text: #e8e8f0;
+  --text2: #8888aa;
+  --text3: #666688;
+  --primary: #7c3aed;
+  --primary-glow: rgba(124, 58, 237, 0.3);
+  --primary-hover: #8b5cf6;
+  --accent: #06b6d4;
+  --green: #10b981;
+  --green-glow: rgba(16, 185, 129, 0.3);
+  --yellow: #f59e0b;
+  --red: #ef4444;
+  --orange: #f97316;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.5);
+  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+[data-theme="light"] {
+  --bg: #f0f0f6;
+  --bg2: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f0f0f6;
+  --border: #d0d0e0;
+  --text: #1a1a2e;
+  --text2: #666680;
+  --text3: #9999aa;
+  --shadow: 0 8px 32px rgba(0,0,0,0.08);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;display:flex;flex-direction:column;
+  transition:background var(--transition),color var(--transition);
+  user-select:none;
+}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--primary)}
+
+/* ── Top Bar ── */
+.topbar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 16px;
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  -webkit-app-region:drag;
+  flex-shrink:0;
+}
+.topbar .logo{
+  display:flex;align-items:center;gap:8px;
+  font-size:17px;font-weight:700;
+  margin-right:auto;
+}
+.topbar .logo i{
+  font-size:20px;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.topbar .logo .ver{
+  font-size:10px;font-weight:500;
+  color:var(--text3);
+  -webkit-text-fill-color:var(--text3);
+  margin-top:4px;
+}
+.top-btn{
+  width:34px;height:34px;border-radius:var(--radius-xs);
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--text2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all var(--transition);
+  font-size:14px;
+  -webkit-app-region:no-drag;
+}
+.top-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);transform:translateY(-1px)}
+.top-btn.close-btn:hover{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* ── Main Content ── */
+.main{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:16px 20px;position:relative;
+}
+.main-content{
+  width:100%;max-width:540px;display:flex;flex-direction:column;align-items:center;gap:10px;
+  position:relative;z-index:1;
+}
+.main-content.manual-mode .search-container{display:none}
+
+/* ── Search Box ── */
+.search-container{
+  width:100%;display:flex;gap:8px;align-items:center;
+}
+.search-box{
+  flex:1;position:relative;
+}
+.search-box input{
+  width:100%;padding:14px 16px 14px 46px;
+  border-radius:var(--radius);
+  border:2px solid var(--border);
+  background:var(--surface);
+  color:var(--text);
+  font-size:16px;outline:none;
+  transition:all var(--transition);
+  font-family:inherit;
+}
+.search-box input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-glow)}
+.search-box input::placeholder{color:var(--text3)}
+.search-box i{
+  position:absolute;left:16px;top:50%;transform:translateY(-50%);
+  color:var(--text3);font-size:16px;transition:color var(--transition);
+}
+.search-box input:focus + i{color:var(--primary)}
+.send-btn{
+  width:48px;height:48px;border-radius:var(--radius);
+  border:none;
+  background:linear-gradient(135deg,var(--primary),#6d28d9);
+  color:#fff;font-size:18px;
+  cursor:pointer;transition:all var(--transition);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;box-shadow:0 4px 16px var(--primary-glow);
+}
+.send-btn:hover{transform:scale(1.05);box-shadow:0 6px 24px var(--primary-glow)}
+.send-btn:active{transform:scale(0.95)}
+.send-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+/* ── Results List ── */
+.results-container{
+  display:none;flex-direction:column;gap:8px;
+  width:100%;
+  padding:4px 0;margin-top:6px;
+}
+.results-container.visible{display:flex}
+.result-item{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+  background:var(--surface);
+  transition:all 0.2s;
+}
+.result-item:hover{border-color:var(--primary);background:var(--surface2);transform:translateX(4px)}
+.result-item .ri-num{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--bg2);color:var(--text3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;flex-shrink:0;
+}
+.result-item .ri-info{flex:1;min-width:0;cursor:pointer}
+.result-item .ri-title{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4}
+.result-item .ri-channel{font-size:12px;color:var(--text2);line-height:1.3;margin-top:3px}
+.result-item .ri-dur{font-size:12px;color:var(--text3);flex-shrink:0;padding:3px 10px;border-radius:6px;background:var(--bg2);font-variant-numeric:tabular-nums}
+.result-item .ri-dl-btn{
+  width:36px;height:36px;border-radius:50%;
+  border:none;background:var(--primary);
+  color:#fff;font-size:14px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all 0.2s;
+}
+.result-item .ri-dl-btn:hover{transform:scale(1.15);box-shadow:0 0 20px var(--primary-glow)}
+
+/* ── Download Overlay ── */
+.dl-overlay{
+  display:none;position:absolute;inset:0;
+  background:var(--bg);z-index:50;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;padding:40px;
+}
+.dl-overlay.visible{display:flex}
+.dl-overlay .dl-icon{
+  font-size:48px;color:var(--primary);
+  animation:pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.6;transform:scale(1.1)}
+}
+.dl-overlay .dl-title{font-size:18px;font-weight:600;text-align:center}
+.dl-overlay .dl-steps{width:100%;max-width:400px;display:flex;flex-direction:column;gap:8px}
+.dl-overlay .dl-step{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1px solid var(--border);
+  font-size:13px;color:var(--text2);transition:all 0.3s;
+}
+.dl-overlay .dl-step .step-icon{width:20px;text-align:center;flex-shrink:0}
+.dl-overlay .dl-step.active{border-color:var(--primary);color:var(--text);background:rgba(124,58,237,0.08)}
+.dl-overlay .dl-step.done{border-color:var(--green);color:var(--green);background:rgba(16,185,129,0.08)}
+.dl-overlay .dl-step.error{border-color:var(--red);color:var(--red);background:rgba(239,68,68,0.08)}
+.dl-overlay .dl-progress{
+  width:100%;max-width:400px;height:4px;
+  background:var(--border);border-radius:2px;overflow:hidden;
+}
+.dl-overlay .dl-progress .bar{
+  height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));
+  border-radius:2px;transition:width 0.3s;width:0%;
+}
+.dl-overlay .dl-detail{font-size:12px;color:var(--text3);text-align:center;max-width:400px;word-break:break-all}
+
+/* ── Settings Modal ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);
+  z-index:200;align-items:center;justify-content:center;
+  -webkit-app-region:no-drag;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);width:90%;max-width:480px;
+  max-height:90vh;display:flex;flex-direction:column;
+  box-shadow:0 24px 80px rgba(0,0,0,0.5);
+  animation:modalIn 0.2s ease;
+}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{
+  display:flex;align-items:center;gap:10px;
+  padding:20px 24px 0 24px;flex-shrink:0;
+}
+.modal-header h2{font-size:17px;font-weight:700;flex:1;display:flex;align-items:center;gap:8px}
+.modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;padding:4px}
+.modal-close:hover{color:var(--red)}
+.modal-body{padding:20px 24px 24px;overflow-y:auto;flex:1}
+.settings-section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.settings-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.settings-section h4{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+
+.toggle-row{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;transition:all var(--transition)}
+.toggle-row:hover{border-color:var(--primary)}
+.toggle-row .toggle-track{width:44px;height:24px;border-radius:12px;background:var(--border);position:relative;transition:background var(--transition);flex-shrink:0}
+.toggle-row.active .toggle-track{background:var(--primary)}
+.toggle-row .toggle-thumb{width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform var(--transition)}
+.toggle-row.active .toggle-thumb{transform:translateX(20px)}
+.toggle-row .toggle-label{font-size:14px;flex:1}
+.toggle-row .toggle-desc{font-size:11px;color:var(--text3)}
+
+.setting-input{width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border var(--transition)}
+.setting-input:focus{border-color:var(--primary)}
+.setting-input:read-only{color:var(--text3);cursor:not-allowed}
+
+.setting-btn{padding:8px 16px;border-radius:var(--radius-xs);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all var(--transition);display:inline-flex;align-items:center;gap:6px}
+.setting-btn-primary{background:var(--primary);color:#fff}
+.setting-btn-primary:hover{background:var(--primary-hover)}
+.setting-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.setting-btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.setting-btn-red{background:var(--red);color:#fff}
+.setting-btn-red:hover{opacity:0.9}
+.setting-btn-sm{padding:6px 12px;font-size:12px}
+
+.downloads-list{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto}
+.dl-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid var(--border);font-size:12px}
+.dl-item .dli-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl-item .dli-actions{display:flex;gap:4px}
+.dl-item .dli-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px;padding:4px;border-radius:4px;transition:all 0.15s}
+.dl-item .dli-btn:hover{background:var(--surface2)}
+.dl-item .dli-btn.dl:hover{color:var(--green)}
+.dl-item .dli-btn.rm:hover{color:var(--red)}
+
+/* ── Update Overlay ── */
+.update-overlay{
+  display:none;position:absolute;inset:0;
+  background:var(--bg);z-index:60;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:20px;padding:40px;
+}
+.update-overlay.visible{display:flex}
+
+/* ── Utilities ── */
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Empty State ── */
+.empty-state{text-align:center;padding:32px 16px;color:var(--text3);font-size:13px}
+.empty-state i{font-size:32px;margin-bottom:8px;opacity:0.4}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  padding:10px 20px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1px solid var(--border);
+  box-shadow:var(--shadow);font-size:13px;
+  z-index:300;display:none;animation:toastIn 0.3s ease;
+  -webkit-app-region:no-drag;
+}
+.toast.show{display:flex;align-items:center;gap:8px}
+.toast.success{border-color:var(--green)}
+.toast.error{border-color:var(--red)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── Responsive ── */
+@media(max-height:700px){
+  .main{padding:16px}
+  .results-container{max-height:160px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <i class="fas fa-music"></i>music-dl
+    <span class="ver" id="versionLabel"></span>
+  </div>
+  <button class="top-btn" id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
+  <button class="top-btn" id="folderBtn" title="Open Downloads"><i class="fas fa-folder-open"></i></button>
+  <button class="top-btn" id="themeBtn" title="Toggle Theme"><i class="fas fa-moon"></i></button>
+  <a id="githubLink" href="#" target="_blank" class="top-btn" title="GitHub"><i class="fab fa-github"></i></a>
+  <button class="top-btn close-btn" id="closeBtn" title="Close"><i class="fas fa-times"></i></button>
+</div>
+
+<div class="main">
+  <div class="main-content" id="mainContent">
+    <div class="search-container">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search for a song..." autocomplete="off" spellcheck="false" oninput="this.value=this.value.replace(/[^a-zA-Z0-9 ]/g,'')">
+      </div>
+      <button class="send-btn" id="sendBtn" title="Download"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    <div class="results-container" id="resultsContainer">
+      <div class="results-info" id="resultsInfo" style="display:none;font-size:12px;color:var(--text3);padding:0 4px 4px;flex-shrink:0"></div>
+    </div>
+  </div>
+
+  <!-- Download Overlay -->
+  <div class="dl-overlay" id="dlOverlay">
+    <div class="dl-icon"><i class="fas fa-circle-notch"></i></div>
+    <div class="dl-title" id="dlTitle">Downloading...</div>
+    <div class="dl-progress"><div class="bar" id="dlProgressBar"></div></div>
+    <div class="dl-steps" id="dlSteps">
+      <div class="dl-step" data-step="search"><span class="step-icon"><i class="fas fa-search"></i></span> Searching YouTube...</div>
+      <div class="dl-step" data-step="metadata"><span class="step-icon"><i class="fas fa-tag"></i></span> Fetching song metadata...</div>
+      <div class="dl-step" data-step="download"><span class="step-icon"><i class="fas fa-download"></i></span> Downloading audio...</div>
+      <div class="dl-step" data-step="extract"><span class="step-icon"><i class="fas fa-file-audio"></i></span> Extracting audio...</div>
+      <div class="dl-step" data-step="processing"><span class="step-icon"><i class="fas fa-pen"></i></span> Adding metadata & album art...</div>
+      <div class="dl-step" data-step="done"><span class="step-icon"><i class="fas fa-check-circle"></i></span> Complete!</div>
+    </div>
+    <div class="dl-detail" id="dlDetail"></div>
+  </div>
+
+  <!-- Update Overlay -->
+  <div class="update-overlay" id="updateOverlay">
+    <div class="dl-icon"><i class="fas fa-sync-alt"></i></div>
+    <div class="dl-title">Updating yt-dlp...</div>
+    <div class="dl-steps">
+      <div class="dl-step active" data-step="update"><span class="step-icon"><i class="fas fa-download"></i></span> <span id="updateStatus">Downloading latest yt-dlp.exe...</span></div>
+      <div class="dl-step" data-step="done"><span class="step-icon"><i class="fas fa-check-circle"></i></span> Update complete!</div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><i class="fas fa-cog" style="color:var(--primary)"></i>Settings</h2>
+      <button class="modal-close" id="closeSettings"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h4>Download Mode</h4>
+        <div class="toggle-row" id="modeToggle">
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          <div><div class="toggle-label">Manual Selection</div><div class="toggle-desc">Choose from 5 YouTube results</div></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Downloaded Songs <span id="dlCount" style="font-weight:400;text-transform:none;margin-left:4px">(0)</span></h4>
+        <div class="downloads-list" id="dlHistoryList">
+          <div class="empty-state"><i class="fas fa-music"></i><p>No downloads yet</p></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="setting-btn setting-btn-red setting-btn-sm" id="clearDlBtn"><i class="fas fa-trash"></i> Clear List</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Download Location</h4>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="downloadPath" readonly class="setting-input">
+          <button class="setting-btn setting-btn-outline setting-btn-sm" id="browsePath"><i class="fas fa-folder-open"></i></button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="border-bottom:none;margin-bottom:0;padding-bottom:0">
+        <h4>Update yt-dlp</h4>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:8px">Update the yt-dlp binary to the latest version</p>
+        <button class="setting-btn setting-btn-primary" id="updateYtdlp"><i class="fas fa-sync-alt"></i> Update Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const state = { mode: false, theme: 'dark', downloading: false, lastResults: null };
+let dlEventSource = null;
+
+async function api(url, opts = {}) {
+  try {
+    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch (e) { showToast(e.message, 'error'); return null; }
+}
+
+function showToast(msg, type = 'success') {
+  const t = $('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function setTheme(t) {
+  state.theme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  $('themeBtn').innerHTML = t === 'dark' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+  localStorage.setItem('md-theme', t);
+}
+const savedTheme = localStorage.getItem('md-theme');
+if (savedTheme) setTheme(savedTheme);
+$('themeBtn').addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
+
+document.addEventListener('click', (e) => {
+  const tag = e.target.tagName;
+  if (!['INPUT','BUTTON','A','I'].includes(tag) && !e.target.closest('.top-btn') && !e.target.closest('.modal-overlay') && !e.target.closest('.toast') && !e.target.closest('.dl-overlay') && !e.target.closest('.update-overlay')) {
+    $('searchInput').focus();
+  }
+});
+
+const searchInput = $('searchInput');
+searchInput.focus();
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !state.downloading) enterPressed();
+});
+
+$('sendBtn').addEventListener('click', () => { if (!state.downloading) enterPressed(); });
+
+function enterPressed() {
+  if (state.mode && state.lastResults) {
+    const active = $('resultsContainer').querySelector('.result-item.active');
+    if (active) { startDownloadManual(); return; }
+  }
+  searchInput.focus();
+  startDownload();
+}
+
+function showResults(results) {
+  state.lastResults = results;
+  const container = $('resultsContainer');
+  const mainContent = $('mainContent');
+  if (!results || !results.length) {
+    container.classList.remove('visible');
+    container.innerHTML = '<div class="results-info" id="resultsInfo"></div>';
+    mainContent.classList.remove('manual-mode');
+    $('sendBtn').style.display = '';
+    searchInput.style.display = '';
+    return;
+  }
+  container.classList.add('visible');
+  $('resultsInfo').textContent = `Showing ${results.length} results — click to select, then press download`;
+  $('resultsInfo').style.display = '';
+
+  if (state.mode) {
+    mainContent.classList.add('manual-mode');
+    $('sendBtn').style.display = 'none';
+    searchInput.style.display = 'none';
+  }
+
+  container.innerHTML = results.map((r, i) => `
+    <div class="result-item" data-idx="${i}">
+      <div class="ri-num">${i + 1}</div>
+      <div class="ri-info">
+        <div class="ri-title">${r.title}</div>
+        <div class="ri-channel">${r.uploader || 'Unknown'}</div>
+      </div>
+      <div class="ri-dur">${r.duration ? formatDuration(r.duration) : ''}</div>
+      <button class="ri-dl-btn show" data-idx="${i}" title="Download"><i class="fas fa-download"></i></button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.ri-info').forEach(el => {
+    el.addEventListener('click', (ev) => {
+      const item = el.closest('.result-item');
+      container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
+      item.classList.add('active');
+      state.selectedIdx = parseInt(item.dataset.idx);
+      ev.stopPropagation();
+    });
+  });
+  container.querySelectorAll('.ri-dl-btn').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      state.selectedIdx = parseInt(btn.dataset.idx);
+      startDownloadManual();
+    });
+  });
+  container.querySelectorAll('.result-item')[0]?.classList.add('active');
+  state.selectedIdx = 0;
+}
+
+function formatDuration(s) {
+  s = parseInt(s) || 0;
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function restoreSearchBar() {
+  $('mainContent').classList.remove('manual-mode');
+  $('sendBtn').style.display = '';
+  searchInput.style.display = '';
+}
+
+async function startDownload() {
+  const query = searchInput.value.trim();
+  if (!query || state.downloading) return;
+  restoreSearchBar();
+  showResults(null);
+
+  if (state.mode) {
+    state.downloading = true;
+    $('sendBtn').disabled = true;
+    searchInput.disabled = true;
+    const res = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'manual' }) });
+    state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false;
+    if (!res || !res.results || !res.results.length) {
+      restoreSearchBar();
+      showToast('No results found', 'error');
+      searchInput.focus();
+      return;
+    }
+    showResults(res.results);
+    searchInput.focus();
+    return;
+  }
+
+  state.downloading = true;
+  $('sendBtn').disabled = true;
+  searchInput.disabled = true;
+  const searchRes = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'auto' }) });
+  if (!searchRes || !searchRes.bestMatch) {
+    showToast('No matching song found', 'error');
+    state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false; searchInput.focus();
+    return;
+  }
+  const bm = searchRes.bestMatch;
+  startDownloadUI(query, bm.video.url, bm.title, bm.uploader, null);
+}
+
+function startDownloadManual() {
+  const query = searchInput.value.trim();
+  const selected = $('resultsContainer').querySelector('.result-item.active');
+  if (!selected) { showToast('Select a result first', 'error'); return; }
+  const idx = parseInt(selected.dataset.idx);
+  const res = state.lastResults?.[idx];
+  if (!res) return;
+  restoreSearchBar();
+  showResults(null);
+  startDownloadUI(query, res.url, res.title, res.uploader, { artist: '', title: res.title });
+}
+
+function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
+  state.downloading = true;
+  $('sendBtn').disabled = true;
+  searchInput.disabled = true;
+  const overlay = $('dlOverlay');
+  overlay.classList.add('visible');
+  $('dlTitle').textContent = `Downloading: ${title}`;
+  $('dlProgressBar').style.width = '0%';
+  $('dlDetail').textContent = '';
+  $('dlSteps').querySelectorAll('.dl-step').forEach(s => { s.className = 'dl-step'; });
+
+  api('/api/download', {
+    method: 'POST', body: JSON.stringify({ query, videoUrl, title, uploader, manualMetadata })
+  }).then(data => {
+    if (!data || !data.id) { handleDownloadError('Failed to start download'); return; }
+    listenProgress(data.id);
+  }).catch(() => handleDownloadError('Failed to start download'));
+}
+
+function listenProgress(id) {
+  if (dlEventSource) dlEventSource.close();
+  dlEventSource = new EventSource('/api/download/progress/' + id);
+  dlEventSource.onmessage = (e) => {
+    try { const data = JSON.parse(e.data); updateProgressUI(data); } catch (_) {}
+  };
+  dlEventSource.onerror = () => {
+    dlEventSource.close();
+    if (state.downloading) handleDownloadError('Connection lost');
+  };
+}
+
+function updateProgressUI(data) {
+  const { stage, message, progress } = data;
+  if (stage === 'done' || stage === 'error') {
+    $('dlSteps').querySelectorAll('.dl-step').forEach(s => { if (s.dataset.step !== stage) s.classList.add('done'); });
+  }
+  const stepEl = $('dlSteps').querySelector(`[data-step="${stage}"]`);
+  if (stepEl) {
+    if (stage === 'done') stepEl.classList.add('done');
+    else if (stage === 'error') stepEl.classList.add('error');
+    else stepEl.classList.add('active');
+  }
+  if (progress !== undefined) $('dlProgressBar').style.width = Math.min(progress, 99) + '%';
+  if (message) $('dlDetail').textContent = message;
+  if (stage === 'done') setTimeout(finishDownload, 800);
+  else if (stage === 'error') handleDownloadError(message);
+}
+
+function finishDownload() {
+  showToast('Download complete!', 'success');
+  resetUI();
+  loadDlHistory();
+}
+
+function handleDownloadError(msg) {
+  showToast(msg || 'Download failed', 'error');
+  resetUI();
+}
+
+function resetUI() {
+  state.downloading = false;
+  $('dlOverlay').classList.remove('visible');
+  $('updateOverlay').classList.remove('visible');
+  $('sendBtn').disabled = false;
+  searchInput.disabled = false;
+  searchInput.focus();
+  if (dlEventSource) { dlEventSource.close(); dlEventSource = null; }
+}
+
+$('settingsBtn').addEventListener('click', () => { $('settingsModal').classList.add('open'); loadSettingsUI(); });
+$('closeSettings').addEventListener('click', () => $('settingsModal').classList.remove('open'));
+$('settingsModal').addEventListener('click', (e) => {
+  if (e.target === $('settingsModal')) $('settingsModal').classList.remove('open');
+});
+
+const modeToggle = $('modeToggle');
+modeToggle.addEventListener('click', () => {
+  state.mode = !state.mode;
+  modeToggle.classList.toggle('active', state.mode);
+  localStorage.setItem('md-mode', state.mode ? 'manual' : 'auto');
+  $('resultsContainer').classList.remove('visible');
+  state.lastResults = null;
+});
+const savedMode = localStorage.getItem('md-mode');
+if (savedMode === 'manual') { state.mode = true; modeToggle.classList.add('active'); }
+
+async function loadSettingsUI() {
+  const dlHistory = await api('/api/downloads');
+  renderDlHistory(dlHistory || []);
+  const settings = await api('/api/settings');
+  if (settings && settings.downloadPath) $('downloadPath').value = settings.downloadPath;
+  else $('downloadPath').value = 'downloads/';
+}
+
+function renderDlHistory(list) {
+  const container = $('dlHistoryList');
+  $('dlCount').textContent = `(${list.length})`;
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-music"></i><p>No downloads yet</p></div>';
+    return;
+  }
+  container.innerHTML = list.map(d => `
+    <div class="dl-item">
+      <i class="fas fa-file-audio" style="color:var(--accent)"></i>
+      <span class="dli-name" title="${d.name}">${d.name}</span>
+      <span style="font-size:10px;color:var(--text3);flex-shrink:0">${d.downloadedAt ? new Date(d.downloadedAt).toLocaleDateString() : ''}</span>
+      <div class="dli-actions">
+        <button class="dli-btn dl" data-query="${d.query || ''}" title="Download again"><i class="fas fa-redo"></i></button>
+        <button class="dli-btn rm" data-id="${d.id}" title="Remove"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+  `).join('');
+  container.querySelectorAll('.dli-btn.dl').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const q = btn.dataset.query;
+      if (q) { searchInput.value = q; $('settingsModal').classList.remove('open'); startDownload(); }
+    });
+  });
+  container.querySelectorAll('.dli-btn.rm').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await api('/api/downloads/remove', { method: 'POST', body: JSON.stringify({ id: btn.dataset.id }) });
+      loadDlHistory();
+    });
+  });
+}
+
+async function loadDlHistory() {
+  const dlHistory = await api('/api/downloads');
+  renderDlHistory(dlHistory || []);
+}
+
+$('clearDlBtn').addEventListener('click', async () => {
+  await api('/api/downloads/clear', { method: 'POST' });
+  loadDlHistory();
+  showToast('List cleared');
+});
+
+$('browsePath').addEventListener('click', async () => {
+  let folder = null;
+  if (window.electronAPI) folder = await window.electronAPI.selectFolder();
+  else folder = prompt('Enter download folder path:');
+  if (folder) {
+    await api('/api/settings', { method: 'POST', body: JSON.stringify({ downloadPath: folder }) });
+    $('downloadPath').value = folder;
+    showToast('Download path updated');
+  }
+});
+
+$('updateYtdlp').addEventListener('click', async () => {
+  $('updateYtdlp').disabled = true;
+  $('updateYtdlp').innerHTML = '<div class="spinner"></div> Updating...';
+  $('settingsModal').classList.remove('open');
+  $('updateOverlay').classList.add('visible');
+  const res = await api('/api/update-ytdlp', { method: 'POST' });
+  if (!res || !res.id) {
+    $('updateOverlay').classList.remove('visible');
+    $('updateYtdlp').disabled = false;
+    $('updateYtdlp').innerHTML = '<i class="fas fa-sync-alt"></i> Update Now';
+    showToast('Failed to start update', 'error');
+    return;
+  }
+  listenUpdateProgress(res.id);
+});
+
+function listenUpdateProgress(id) {
+  if (dlEventSource) dlEventSource.close();
+  dlEventSource = new EventSource('/api/download/progress/' + id);
+  dlEventSource.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.message) $('updateStatus').textContent = data.message;
+      if (data.stage === 'done') {
+        setTimeout(() => {
+          $('updateOverlay').classList.remove('visible');
+          $('updateYtdlp').disabled = false;
+          $('updateYtdlp').innerHTML = '<i class="fas fa-sync-alt"></i> Update Now';
+          showToast('yt-dlp updated!', 'success');
+        }, 1500);
+      } else if (data.stage === 'error') {
+        $('updateOverlay').classList.remove('visible');
+        $('updateYtdlp').disabled = false;
+        $('updateYtdlp').innerHTML = '<i class="fas fa-sync-alt"></i> Update Now';
+        showToast(data.message || 'Update failed', 'error');
+      }
+    } catch (_) {}
+  };
+  dlEventSource.onerror = () => {
+    dlEventSource.close();
+    $('updateOverlay').classList.remove('visible');
+    $('updateYtdlp').disabled = false;
+    $('updateYtdlp').innerHTML = '<i class="fas fa-sync-alt"></i> Update Now';
+  };
+}
+
+$('closeBtn').addEventListener('click', () => {
+  if (window.electronAPI) window.electronAPI.closeWindow();
+  else window.close();
+});
+
+$('folderBtn').addEventListener('click', async () => {
+  await api('/api/open-folder', { method: 'POST' });
+});
+
+api('/api/version').then(r => {
+  if (r && r.version) $('versionLabel').textContent = 'v' + r.version;
+});
+$('githubLink').href = 'https://github.com/eaeoz/track-dl';
+
+(async function init() {
+  loadDlHistory();
+})();
+</script>
+</body>
+</html>

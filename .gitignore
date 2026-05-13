@@ -1,0 +1,5 @@
+node_modules/
+dist/
+downloads/
+settings.json
+downloads-state.json

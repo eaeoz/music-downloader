@@ -1,0 +1,11 @@
+node_modules/
+*.log
+.env
+.env.local
+.DS_Store
+dist/
+build/
+*.exe
+*.mp3
+*.flac
+*.wav
