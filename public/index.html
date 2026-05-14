@@ -148,6 +148,16 @@ body{
 .send-btn:active{transform:scale(0.95)}
 .send-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
 
+/* ── Paste Hint ── */
+.paste-hint{
+  font-size:11px;color:var(--text3);text-align:center;
+  padding:4px 0 0;opacity:0.5;
+  transition:opacity var(--transition);
+  pointer-events:none;min-height:16px;
+}
+.search-container:hover + .paste-hint{opacity:0.8}
+.main-content.manual-mode .paste-hint{display:none}
+
 /* ── Results List ── */
 .results-container{
   display:none;flex-direction:column;gap:8px;
@@ -298,6 +308,67 @@ body{
   gap:20px;padding:40px;
 }
 .update-overlay.visible{display:flex}
+.update-ring-wrap{
+  position:relative;width:130px;height:130px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.update-ring{
+  position:absolute;inset:0;border-radius:50%;
+}
+.update-ring::before{
+  content:'';position:absolute;inset:-3px;border-radius:50%;
+  background:conic-gradient(var(--primary),var(--accent),var(--green),var(--primary) 100%);
+  animation:updateSpin 2s linear infinite;
+}
+.update-ring::after{
+  content:'';position:absolute;inset:3px;border-radius:50%;background:var(--bg);
+}
+.update-orbit{
+  position:absolute;inset:0;z-index:2;animation:updateSpin 2.5s linear infinite;
+}
+.update-orbit-dot{
+  position:absolute;width:10px;height:10px;border-radius:50%;
+  background:var(--accent);top:-5px;left:calc(50% - 5px);
+  box-shadow:0 0 14px var(--accent),0 0 30px rgba(6,182,212,0.3);
+}
+.update-center-icon{
+  font-size:38px;color:var(--accent);z-index:3;
+  animation:iconCycle 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 10px rgba(6,182,212,0.4));
+}
+@keyframes updateSpin{to{transform:rotate(360deg)}}
+@keyframes iconCycle{
+  0%,100%{color:var(--accent);filter:drop-shadow(0 0 10px rgba(6,182,212,0.4))}
+  33%{color:var(--primary);filter:drop-shadow(0 0 10px rgba(124,58,237,0.4))}
+  66%{color:var(--green);filter:drop-shadow(0 0 10px rgba(16,185,129,0.4))}
+}
+.update-title{
+  font-size:20px;font-weight:700;text-align:center;
+  background:linear-gradient(135deg,var(--primary),var(--accent),var(--green));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-size:200% 200%;animation:titleShimmer 3s ease infinite;
+}
+@keyframes titleShimmer{
+  0%,100%{background-position:0% 50%}50%{background-position:100% 50%}
+}
+.update-status{
+  font-size:13px;color:var(--text3);text-align:center;
+  min-height:20px;transition:all 0.3s;
+}
+.update-bar-wrap{
+  width:260px;height:4px;background:var(--border);
+  border-radius:4px;overflow:hidden;
+}
+.update-bar-fill{
+  height:100%;width:0%;border-radius:4px;
+  background:linear-gradient(90deg,var(--primary),var(--accent),var(--green));
+  background-size:200% 100%;animation:barShimmer 2s linear infinite;
+  transition:width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes barShimmer{
+  0%{background-position:200% 0}100%{background-position:-200% 0}
+}
 
 /* ── Utilities ── */
 .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block}
@@ -351,6 +422,7 @@ body{
       </div>
       <button class="send-btn" id="sendBtn" title="Download"><i class="fas fa-paper-plane"></i></button>
     </div>
+    <div class="paste-hint" id="pasteHint"><i class="fas fa-clipboard"></i> Right‑click to paste</div>
     <div class="results-container" id="resultsContainer">
       <div class="results-info" id="resultsInfo" style="display:none;font-size:12px;color:var(--text3);padding:0 4px 4px;flex-shrink:0"></div>
       <button class="back-btn" id="backBtn" style="display:none"><i class="fas fa-arrow-left"></i> Back</button>
@@ -375,12 +447,14 @@ body{
 
   <!-- Update Overlay -->
   <div class="update-overlay" id="updateOverlay">
-    <div class="dl-icon"><i class="fas fa-sync-alt"></i></div>
-    <div class="dl-title">Updating yt-dlp...</div>
-    <div class="dl-steps">
-      <div class="dl-step active" data-step="update"><span class="step-icon"><i class="fas fa-download"></i></span> <span id="updateStatus">Downloading latest yt-dlp.exe...</span></div>
-      <div class="dl-step" data-step="done"><span class="step-icon"><i class="fas fa-check-circle"></i></span>Hang tight!</div>
+    <div class="update-ring-wrap">
+      <div class="update-ring"></div>
+      <div class="update-orbit"><div class="update-orbit-dot"></div></div>
+      <div class="update-center-icon"><i class="fas fa-bolt"></i></div>
     </div>
+    <div class="update-title" id="updateTitle">Updating yt-dlp</div>
+    <div class="update-status" id="updateStatus">Preparing update...</div>
+    <div class="update-bar-wrap"><div class="update-bar-fill" id="updateBarFill"></div></div>
   </div>
 </div>
 
@@ -474,6 +548,17 @@ searchInput.addEventListener('keydown', (e) => {
 
 $('sendBtn').addEventListener('click', () => { if (!state.downloading) enterPressed(); });
 
+searchInput.addEventListener('contextmenu', async (e) => {
+  e.preventDefault();
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      searchInput.value = text.replace(/[^a-zA-Z0-9 ]/g,'');
+      searchInput.focus();
+    }
+  } catch (_) {}
+});
+
 function enterPressed() {
   if (state.mode && state.lastResults) {
     const active = $('resultsContainer').querySelector('.result-item.active');
@@ -553,6 +638,7 @@ function formatDuration(s) {
 }
 
 function goBack() {
+  searchInput.value = '';
   restoreSearchBar();
   showResults(null);
   searchInput.focus();
@@ -675,6 +761,7 @@ function updateProgressUI(data) {
 
 function finishDownload() {
   showToast('Download complete!', 'success');
+  searchInput.value = '';
   resetUI();
   loadDlHistory();
 }
@@ -796,7 +883,10 @@ function listenUpdateProgress(id) {
     try {
       const data = JSON.parse(e.data);
       if (data.message) $('updateStatus').textContent = data.message;
+      if (data.progress !== undefined) $('updateBarFill').style.width = Math.min(data.progress, 99) + '%';
       if (data.stage === 'done') {
+        $('updateBarFill').style.width = '100%';
+        $('updateStatus').textContent = 'Update complete!';
         setTimeout(() => {
           $('updateOverlay').classList.remove('visible');
           $('updateYtdlp').disabled = false;
