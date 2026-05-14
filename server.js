@@ -12,11 +12,11 @@ const app = express();
 const PORT = process.env.PORT || 3666;
 const TRACK_DL_DIR = process.env.TRACK_DL_PATH || path.join(__dirname, 'node_modules', 'track-dl');
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const DOWNLOADS_DIR = process.env.DOWNLOAD_PATH || path.join(__dirname, 'downloads');
 const SETTINGS_FILE = process.env.ELECTRON_USERDATA ? path.join(process.env.ELECTRON_USERDATA, 'settings.json') : path.join(__dirname, 'settings.json');
 const DOWNLOADS_STATE_FILE = process.env.ELECTRON_USERDATA ? path.join(process.env.ELECTRON_USERDATA, 'downloads-state.json') : path.join(__dirname, 'downloads-state.json');
 
-if (!fs.existsSync(DOWNLOADS_DIR)) fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
+const DEFAULT_DOWNLOADS_DIR = path.join(__dirname, 'downloads');
+if (!fs.existsSync(DEFAULT_DOWNLOADS_DIR)) fs.mkdirSync(DEFAULT_DOWNLOADS_DIR, { recursive: true });
 
 const { searchYouTube, downloadYouTubeAudioWithTemp } = require('track-dl/lib/youtube');
 const { mergeMetadata } = require('track-dl/lib/merger');
@@ -28,7 +28,7 @@ let downloadIdCounter = 0;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(PUBLIC_DIR, { setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate') }));
-app.use('/downloads', express.static(DOWNLOADS_DIR));
+app.use('/downloads', express.static(DEFAULT_DOWNLOADS_DIR));
 
 function loadSettings() {
   try { if (fs.existsSync(SETTINGS_FILE)) return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8')); } catch (_) {}
@@ -39,6 +39,13 @@ function saveSettings(data) {
   const merged = { ...current, ...data };
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2));
   return merged;
+}
+
+function getDownloadsDir() {
+  const settings = loadSettings();
+  if (settings.downloadPath) return settings.downloadPath;
+  if (process.env.DOWNLOAD_PATH) return process.env.DOWNLOAD_PATH;
+  return DEFAULT_DOWNLOADS_DIR;
 }
 
 function loadDownloadsState() {
@@ -172,7 +179,7 @@ app.post('/api/download', async (req, res) => {
       emitter.emit('progress', { stage: 'download', message: 'Downloading audio from YouTube...', progress: 0 });
 
       const ytdlpArgs = [videoUrl, '-x', '--audio-format', 'mp3', '--audio-quality', '0',
-        '-o', path.join(DOWNLOADS_DIR, 'temp_audio_') + id,
+        '-o', path.join(getDownloadsDir(), 'temp_audio_') + id,
         '--ffmpeg-location', FFMPEG_PATH,
         '--newline', '--progress', '--no-warnings'];
 
@@ -182,12 +189,12 @@ app.post('/api/download', async (req, res) => {
       const possibleExts = ['.mp3', '.m4a', '.webm', '.opus', '.aac'];
       let tempAudioPath = null;
       for (const ext of possibleExts) {
-        const f = path.join(DOWNLOADS_DIR, `temp_audio_${id}${ext}`);
+        const f = path.join(getDownloadsDir(), `temp_audio_${id}${ext}`);
         if (fs.existsSync(f)) { tempAudioPath = f; break; }
       }
       if (!tempAudioPath) {
-        const files = fs.readdirSync(DOWNLOADS_DIR).filter(f => f.startsWith(`temp_audio_${id}`));
-        if (files.length) tempAudioPath = path.join(DOWNLOADS_DIR, files[0]);
+        const files = fs.readdirSync(getDownloadsDir()).filter(f => f.startsWith(`temp_audio_${id}`));
+        if (files.length) tempAudioPath = path.join(getDownloadsDir(), files[0]);
       }
       if (!tempAudioPath) throw new Error('Downloaded file not found');
 
@@ -196,14 +203,14 @@ app.post('/api/download', async (req, res) => {
       const safeArtist = sanitize(bestMatch.artist || 'Unknown');
       const safeTitle = sanitize(bestMatch.title || title || 'Unknown');
       const outputFile = `${safeArtist} - ${safeTitle}.mp3`;
-      const outputPath = path.join(DOWNLOADS_DIR, outputFile);
+      const outputPath = path.join(getDownloadsDir(), outputFile);
 
       let counter = 1;
       let finalPath = outputPath;
       while (fs.existsSync(finalPath)) {
         const ext = path.extname(outputPath);
         const base = path.basename(outputPath, ext);
-        finalPath = path.join(DOWNLOADS_DIR, `${base} (${counter})${ext}`);
+        finalPath = path.join(getDownloadsDir(), `${base} (${counter})${ext}`);
         counter++;
       }
 
@@ -348,8 +355,8 @@ app.post('/api/downloads/remove', (req, res) => {
 
 app.post('/api/open-folder', (req, res) => {
   try {
-    const cmd = process.platform === 'win32' ? `explorer "${DOWNLOADS_DIR}"` :
-      process.platform === 'darwin' ? `open "${DOWNLOADS_DIR}"` : `xdg-open "${DOWNLOADS_DIR}"`;
+    const cmd = process.platform === 'win32' ? `explorer "${getDownloadsDir()}"` :
+      process.platform === 'darwin' ? `open "${getDownloadsDir()}"` : `xdg-open "${getDownloadsDir()}"`;
     require('child_process').exec(cmd);
     res.json({ ok: true });
   } catch (e) {
