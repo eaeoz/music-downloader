@@ -255,8 +255,8 @@ app.get('/api/download/progress/:id', (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
     if (data.stage === 'done' || data.stage === 'error') {
       emitter.removeListener('progress', onProgress);
-      res.end();
-      setTimeout(() => delete downloadEmitters[id], 1000);
+      setTimeout(() => res.end(), 1000);
+      setTimeout(() => delete downloadEmitters[id], 2000);
     }
   };
 

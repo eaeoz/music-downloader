@@ -729,13 +729,18 @@ function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
 
 function listenProgress(id) {
   if (dlEventSource) dlEventSource.close();
+  let receivedTerminal = false;
   dlEventSource = new EventSource('/api/download/progress/' + id);
   dlEventSource.onmessage = (e) => {
-    try { const data = JSON.parse(e.data); updateProgressUI(data); } catch (_) {}
+    try {
+      const data = JSON.parse(e.data);
+      if (data.stage === 'done' || data.stage === 'error') receivedTerminal = true;
+      updateProgressUI(data);
+    } catch (_) {}
   };
   dlEventSource.onerror = () => {
     dlEventSource.close();
-    if (state.downloading) handleDownloadError('Connection lost');
+    if (!receivedTerminal && state.downloading) handleDownloadError('Connection lost');
   };
 }
 
