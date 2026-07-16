@@ -30,6 +30,7 @@ iex (iwr -useb https://tinyurl.com/msdlps1)
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Preview](#-preview)
 - [Features](#-features)
 - [Download & Installation](#-download--installation)
 - [How to Use](#-how-to-use)
@@ -49,6 +50,18 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 - 🎨 **Album Art Embedding** — Cover art is downloaded and embedded directly into the MP3 via FFmpeg
 - 🌓 **Dark & Light Theme** — Toggle between themes with persistent preference
 - 🗂️ **Download History** — Browse, re-download, or remove past downloads
+
+---
+
+## 🖼️ Preview
+
+<p align="center">
+  <img src="sample_preview/music-downloader.png" alt="Music Downloader - Search View" width="600">
+</p>
+
+<p align="center">
+  <img src="sample_preview/music-downloader-2.png" alt="Music Downloader - Download Progress" width="600">
+</p>
 
 ---
 
