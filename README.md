@@ -53,15 +53,11 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 
 ---
 
-## 🖼️ Preview
+## 📸 Screenshots
 
-<p align="center">
-  <img src="sample_preview/music-downloader.png" alt="Music Downloader - Search View" width="600">
-</p>
-
-<p align="center">
-  <img src="sample_preview/music-downloader-2.png" alt="Music Downloader - Download Progress" width="600">
-</p>
+| Search View | Download Progress |
+|:-----------:|:-----------------:|
+| ![Search View](sample_preview/music-downloader.png) | ![Download Progress](sample_preview/music-downloader-2.png) |
 
 ---
 
