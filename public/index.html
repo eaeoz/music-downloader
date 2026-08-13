@@ -172,6 +172,7 @@ body{
   border:1px solid var(--border);
   background:var(--surface);
   transition:all 0.2s;
+  cursor:pointer;
 }
 .result-item:hover{border-color:var(--primary);background:var(--surface2);transform:translateX(4px)}
 .result-item .ri-num{
@@ -634,22 +635,12 @@ function renderOptionList(header, items, renderItem, onPick, onBack, opts = {}) 
   items.forEach((item, i) => {
     const row = container.querySelector(`[data-idx="${i}"]`);
     if (!row) return;
-    row.querySelector('.ri-info').addEventListener('click', (ev) => {
+    row.addEventListener('click', () => {
       container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
       row.classList.add('active');
       state.selectedIdx = i;
-      ev.stopPropagation();
+      onPick(item, i);
     });
-    const pickBtn = row.querySelector('.ri-dl-btn');
-    if (pickBtn) {
-      pickBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
-        row.classList.add('active');
-        state.selectedIdx = i;
-        onPick(item, i);
-      });
-    }
   });
   container.querySelectorAll('.result-item')[0]?.classList.add('active');
 }
