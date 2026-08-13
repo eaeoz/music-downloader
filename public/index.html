@@ -287,6 +287,7 @@ body{
 .setting-input{width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border var(--transition)}
 .setting-input:focus{border-color:var(--primary)}
 .setting-input:read-only{color:var(--text3);cursor:not-allowed}
+select.setting-input{cursor:pointer;appearance:auto}
 
 .setting-btn{padding:8px 16px;border-radius:var(--radius-xs);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all var(--transition);display:inline-flex;align-items:center;gap:6px}
 .setting-btn-primary{background:var(--primary);color:#fff}
@@ -504,7 +505,8 @@ body{
 
 <script>
 const $ = id => document.getElementById(id);
-const state = { theme: 'dark', downloading: false, lastResults: null, stage: 'youtube', query: '', selectedYoutube: null, selectedMetadata: null, metadataOptions: null };
+const state = { theme: 'dark', downloading: false, lastResults: null, stage: 'youtube', query: '', selectedYoutube: null, selectedMetadata: null, metadataOptions: null, coverOptions: null, selectedCoverUrl: '', audioFormats: null };
+const TARGET_BITRATES = [64, 128, 192, 256, 320];
 let dlEventSource = null;
 
 async function api(url, opts = {}) {
@@ -566,10 +568,11 @@ function enterPressed() {
       if (!item) return;
       if (state.stage === 'youtube') startMetadataStep(item);
       else if (state.stage === 'metadata') startCoverStep(item);
-      else if (state.stage === 'cover') startDownloadManual(item.url);
+      else if (state.stage === 'cover') startBitrateStep(item.url);
       return;
     }
   }
+  if (state.stage === 'bitrate') { startDownloadFromBitrate(); return; }
   searchInput.focus();
   startDownload();
 }
@@ -602,6 +605,9 @@ function goBack() {
   state.selectedYoutube = null;
   state.selectedMetadata = null;
   state.metadataOptions = null;
+  state.coverOptions = null;
+  state.selectedCoverUrl = '';
+  state.audioFormats = null;
   state.youtubeResults = null;
   searchInput.value = '';
   restoreSearchBar();
@@ -674,6 +680,9 @@ async function startMetadataStep(youtubeItem) {
   state.selectedYoutube = youtubeItem;
   state.selectedMetadata = null;
   state.metadataOptions = null;
+  state.coverOptions = null;
+  state.selectedCoverUrl = '';
+  state.audioFormats = null;
   const res = await api('/api/metadata-options', {
     method: 'POST',
     body: JSON.stringify({ query: state.query, videoTitle: youtubeItem.title, uploader: youtubeItem.uploader })
@@ -718,7 +727,7 @@ async function startCoverStep(metadata) {
     if (metadata && metadata.coverUrl) {
       options = [{ url: metadata.coverUrl, source: 'Selected metadata', label: `${metadata.artist} - ${metadata.album || metadata.title}` }];
     } else {
-      startDownloadManual(metadata ? (metadata.coverUrl || '') : '');
+      startBitrateStep(metadata ? (metadata.coverUrl || '') : '');
       return;
     }
   }
@@ -727,6 +736,7 @@ async function startCoverStep(metadata) {
 
 function showCoverOptions(options) {
   state.stage = 'cover';
+  state.coverOptions = options;
   renderOptionList(
     'Select album cover',
     options,
@@ -738,10 +748,66 @@ function showCoverOptions(options) {
       </div>
       <button class="ri-dl-btn" title="Choose"><i class="fas fa-check"></i></button>
     </div>`,
-    (c) => startDownloadManual(c.url),
+    (c) => startBitrateStep(c.url),
     () => showMetadataOptions(state.metadataOptions),
-    { skipLabel: 'Skip album cover', onSkip: () => startDownloadManual('') }
+    { skipLabel: 'Skip album cover', onSkip: () => startBitrateStep('') }
   );
+}
+
+async function startBitrateStep(coverUrl) {
+  state.selectedCoverUrl = coverUrl || '';
+  state.stage = 'bitrate';
+  state.lastResults = null;
+  if (!state.audioFormats && state.selectedYoutube) {
+    const res = await api('/api/audio-formats', { method: 'POST', body: JSON.stringify({ videoUrl: state.selectedYoutube.url }) });
+    state.audioFormats = (res && res.formats) || [];
+  }
+  renderBitrateStep();
+}
+
+function renderBitrateStep() {
+  state.stage = 'bitrate';
+  state.lastResults = null;
+  const container = $('resultsContainer');
+  container.classList.add('visible');
+  const formats = state.audioFormats || [];
+  const highestIdx = formats.length ? formats.length - 1 : -1;
+
+  const srcOptions = formats.length
+    ? formats.map((f, i) => `<option value="${i}" ${i === highestIdx ? 'selected' : ''}>${f.label}</option>`).join('')
+    : '<option value="-1" selected>Auto (best quality)</option>';
+
+  const tgtOptions = TARGET_BITRATES.map(b => `<option value="${b}" ${b === 192 ? 'selected' : ''}>${b} kbps</option>`).join('');
+
+  container.innerHTML = `
+    <div class="results-info" id="resultsInfo">Select audio quality</div>
+    <div style="display:flex;flex-direction:column;gap:12px;padding:8px 2px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:12px;color:var(--text2);font-weight:600">Source audio (from YouTube)</label>
+        <select id="srcBitrateSelect" class="setting-input">${srcOptions}</select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:12px;color:var(--text2);font-weight:600">Convert to MP3</label>
+        <select id="tgtBitrateSelect" class="setting-input">${tgtOptions}</select>
+      </div>
+      <button class="back-btn" id="bitrateDownloadBtn" style="margin-top:6px;background:linear-gradient(135deg,var(--primary),#6d28d9);border-color:var(--primary);color:#fff;font-weight:600"><i class="fas fa-download"></i> Download</button>
+      <button class="back-btn" id="backBtn"><i class="fas fa-arrow-left"></i> Back</button>
+    </div>`;
+  $('backBtn').addEventListener('click', () => {
+    if (state.coverOptions) showCoverOptions(state.coverOptions);
+    else if (state.metadataOptions) showMetadataOptions(state.metadataOptions);
+    else showYouTubeResults(state.youtubeResults);
+  });
+  $('bitrateDownloadBtn').addEventListener('click', () => startDownloadFromBitrate());
+}
+
+function startDownloadFromBitrate() {
+  const srcSel = $('srcBitrateSelect');
+  const tgtSel = $('tgtBitrateSelect');
+  const srcIdx = srcSel ? parseInt(srcSel.value, 10) : -1;
+  const sourceFormat = srcIdx >= 0 ? (state.audioFormats || [])[srcIdx] : null;
+  const targetBitrate = tgtSel ? parseInt(tgtSel.value, 10) : 192;
+  startDownloadManual(state.selectedCoverUrl || '', sourceFormat, targetBitrate);
 }
 
 async function startDownload() {
@@ -766,7 +832,7 @@ async function startDownload() {
   searchInput.focus();
 }
 
-function startDownloadManual(coverUrl) {
+function startDownloadManual(coverUrl, sourceFormat, targetBitrate) {
   const yt = state.selectedYoutube;
   if (!yt) { showToast('Select a YouTube result first', 'error'); return; }
   const md = state.selectedMetadata;
@@ -786,10 +852,10 @@ function startDownloadManual(coverUrl) {
   state.stage = 'youtube';
   restoreSearchBar();
   showResults(null);
-  startDownloadUI(state.query, yt.url, yt.title, yt.uploader, manualMetadata);
+  startDownloadUI(state.query, yt.url, yt.title, yt.uploader, manualMetadata, sourceFormat, targetBitrate);
 }
 
-function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
+function startDownloadUI(query, videoUrl, title, uploader, manualMetadata, sourceFormat, targetBitrate) {
   state.downloading = true;
   $('sendBtn').disabled = true;
   searchInput.disabled = true;
@@ -807,7 +873,7 @@ function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
   }
 
   api('/api/download', {
-    method: 'POST', body: JSON.stringify({ query, videoUrl, title, uploader, manualMetadata })
+    method: 'POST', body: JSON.stringify({ query, videoUrl, title, uploader, manualMetadata, sourceFormat, targetBitrate })
   }).then(data => {
     if (!data || !data.id) { handleDownloadError('Failed to start download'); return; }
     listenProgress(data.id);

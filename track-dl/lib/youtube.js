@@ -60,7 +60,102 @@ async function searchYouTube(query, limit = 5) {
   }
 }
 
-async function downloadYouTubeAudioWithTemp(url) {
+const CODEC_DEFAULT_ABR = {
+  opus: 128,
+  'mp4a.40.2': 128,
+  'mp4a.40.5': 64,
+  mp4a: 128,
+  mp3: 128,
+  vorbis: 128,
+  libvorbis: 128,
+  ac3: 384,
+  eac3: 384,
+  dts: 768,
+  flac: 1411,
+  alac: 1411,
+  pcm: 1411,
+  wav: 1411,
+  aiff: 1411
+};
+
+const CODEC_RANK = {
+  'mp4a.40.2': 10,
+  opus: 9,
+  mp3: 8,
+  'mp4a.40.5': 7,
+  vorbis: 6,
+  mp4a: 5,
+  ac3: 4,
+  eac3: 3,
+  flac: 2
+};
+
+const CODEC_LABELS = {
+  opus: 'Opus',
+  'mp4a.40.2': 'AAC',
+  'mp4a.40.5': 'HE-AAC',
+  mp4a: 'AAC',
+  mp3: 'MP3',
+  vorbis: 'Vorbis',
+  libvorbis: 'Vorbis',
+  ac3: 'AC3',
+  eac3: 'E-AC3',
+  dts: 'DTS',
+  flac: 'FLAC',
+  alac: 'ALAC',
+  pcm: 'WAV',
+  wav: 'WAV',
+  aiff: 'AIFF'
+};
+
+function codecLabel(acodec) {
+  return CODEC_LABELS[acodec] || acodec || 'audio';
+}
+
+async function getAudioFormats(url) {
+  try {
+    const result = await execPromise(YTDLP_PATH, [
+      url,
+      '--dump-json',
+      '--no-warnings',
+      '--no-playlist',
+      '--js-runtimes', 'node'
+    ]);
+
+    const video = JSON.parse(result.trim().split('\n')[0]);
+    const formats = (video.formats || []).filter(f =>
+      f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')
+    );
+
+    const byBitrate = new Map();
+    for (const f of formats) {
+      let bitrate = Math.round(f.abr || f.tbr || 0);
+      if (!bitrate) bitrate = CODEC_DEFAULT_ABR[f.acodec] || null;
+      if (!bitrate) continue;
+
+      const existing = byBitrate.get(bitrate);
+      const rank = CODEC_RANK[f.acodec] || 1;
+      const existingRank = existing ? (CODEC_RANK[existing.acodec] || 1) : 0;
+      if (!existing || rank > existingRank) {
+        const note = f.format_note ? ` · ${f.format_note}` : '';
+        byBitrate.set(bitrate, {
+          format_id: f.format_id,
+          bitrate,
+          acodec: f.acodec,
+          ext: f.audio_ext || f.ext || '',
+          label: `${bitrate} kbps · ${codecLabel(f.acodec)}${note}`
+        });
+      }
+    }
+
+    return [...byBitrate.values()].sort((a, b) => a.bitrate - b.bitrate);
+  } catch (err) {
+    console.error('Error fetching audio formats:', err.message);
+    return [];
+  }
+}
+
+async function downloadYouTubeAudioWithTemp(url, sourceFormatId) {
   const tempDir = path.join(__dirname, '..');
   const tempFile = path.join(tempDir, 'temp_audio');
 
@@ -73,6 +168,10 @@ async function downloadYouTubeAudioWithTemp(url) {
     '--ffmpeg-location', FFMPEG_PATH,
     '--js-runtimes', 'node'
   ];
+
+  if (sourceFormatId) {
+    baseArgs.splice(1, 0, '-f', sourceFormatId);
+  }
 
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -102,5 +201,6 @@ async function downloadYouTubeAudioWithTemp(url) {
 
 module.exports = {
   searchYouTube,
-  downloadYouTubeAudioWithTemp
+  downloadYouTubeAudioWithTemp,
+  getAudioFormats
 };

@@ -4,13 +4,14 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const readline = require('readline');
-const { searchYouTube, downloadYouTubeAudioWithTemp } = require('./lib/youtube');
+const { searchYouTube, downloadYouTubeAudioWithTemp, getAudioFormats } = require('./lib/youtube');
 const { mergeMetadata } = require('./lib/merger');
 const { fetchSongInfoOptions, fetchCoverOptions, parseYouTubeTitle } = require('./lib/metadata');
 
 const packageJson = require('./package.json');
 
 const MANUAL_LIMIT = 6;
+const TARGET_BITRATES = [64, 128, 192, 256, 320];
 
 function sanitizeFilename(name) {
   return (name || '')
@@ -91,10 +92,15 @@ function createPrompter() {
   };
 }
 
-function promptNumber(prompter, max, allowSkip) {
+function promptNumber(prompter, max, allowSkip, defaultValue) {
   const skip = allowSkip ? ', 0 to skip' : '';
-  return prompter.question(`Enter number (1-${max}${skip}): `).then((answer) => {
-    const num = parseInt(answer.trim(), 10);
+  const def = defaultValue ? ` [default ${defaultValue}]` : '';
+  return prompter.question(`Enter number (1-${max}${skip}${def}): `).then((answer) => {
+    const trimmed = answer.trim();
+    if (trimmed === '') {
+      return defaultValue || null;
+    }
+    const num = parseInt(trimmed, 10);
     if (allowSkip && num === 0) {
       return 0;
     }
@@ -180,6 +186,43 @@ async function manualSelect(query, youtubeResults) {
       console.log('No cover options found');
     }
 
+    let sourceFormatId = null;
+    let sourceBitrate = null;
+
+    console.log('\n=== Fetching available audio formats ===');
+    const audioFormats = await getAudioFormats(selectedYoutube.url);
+
+    if (audioFormats.length) {
+      const highest = audioFormats.length;
+      console.log(`\n=== Select source audio bitrate (1-${highest}, default highest) ===`);
+      showList(audioFormats, (i, f) => {
+        console.log(`${i}. ${f.label}`);
+      });
+      const formatIndex = await promptNumber(prompter, highest, false, highest);
+      if (!formatIndex) {
+        console.log('Invalid selection');
+        process.exit(1);
+      }
+      const selectedFormat = audioFormats[formatIndex - 1];
+      sourceFormatId = selectedFormat.format_id;
+      sourceBitrate = selectedFormat.bitrate;
+      console.log(`Selected source bitrate: ${selectedFormat.label}`);
+    } else {
+      console.log('No audio format details available, will use best quality source');
+    }
+
+    console.log(`\n=== Select target MP3 bitrate (1-${TARGET_BITRATES.length}, default 192) ===`);
+    showList(TARGET_BITRATES, (i, b) => {
+      console.log(`${i}. ${b} kbps${b === 192 ? ' (default)' : ''}`);
+    });
+    const targetIndex = await promptNumber(prompter, TARGET_BITRATES.length, false, 3);
+    if (!targetIndex) {
+      console.log('Invalid selection');
+      process.exit(1);
+    }
+    const targetBitrate = TARGET_BITRATES[targetIndex - 1];
+    console.log(`Selected target bitrate: ${targetBitrate} kbps`);
+
     return {
       index: youtubeIndex - 1,
       reason: 'Manual selection',
@@ -189,6 +232,9 @@ async function manualSelect(query, youtubeResults) {
       year: metadata?.year || '',
       genre: metadata?.genre || '',
       coverUrl: cover?.url || '',
+      sourceFormatId,
+      sourceBitrate,
+      targetBitrate,
       video: selectedYoutube
     };
   } finally {
@@ -267,10 +313,12 @@ async function main() {
   if (bestMatch.album) console.log(`Album: ${bestMatch.album}`);
   if (bestMatch.year) console.log(`Year: ${bestMatch.year}`);
   if (bestMatch.genre) console.log(`Genre: ${bestMatch.genre}`);
+  if (bestMatch.sourceBitrate) console.log(`Source bitrate: ${bestMatch.sourceBitrate} kbps`);
+  console.log(`Target bitrate: ${bestMatch.targetBitrate} kbps`);
 
   console.log('\n=== Downloading ===');
 
-  const tempAudioPath = await downloadYouTubeAudioWithTemp(selectedYoutube.url);
+  const tempAudioPath = await downloadYouTubeAudioWithTemp(selectedYoutube.url, bestMatch.sourceFormatId);
 
   if (!tempAudioPath) {
     console.log('Download failed');
@@ -293,7 +341,7 @@ async function main() {
   };
 
   try {
-    await mergeMetadata(tempAudioPath, metadata, outputPath);
+    await mergeMetadata(tempAudioPath, metadata, outputPath, bestMatch.targetBitrate);
     console.log(`\n=== SUCCESS ===`);
     console.log(`File: ${outputPath}`);
   } catch (err) {

@@ -40,7 +40,7 @@ async function downloadImage(url, filepath) {
   }
 }
 
-async function mergeMetadata(audioPath, metadata, outputPath) {
+async function mergeMetadata(audioPath, metadata, outputPath, bitrate = 192) {
   const ffmpegPath = ffmpegStatic;
   const tempImage = path.join(__dirname, 'temp_cover.jpg');
   
@@ -71,7 +71,7 @@ async function mergeMetadata(audioPath, metadata, outputPath) {
     
     args.push(
       '-c:a', 'libmp3lame',
-      '-b:a', '192k',
+      '-b:a', `${bitrate}k`,
       '-id3v2_version', '3',
       '-write_id3v1', '1',
       '-metadata', `title=${safeTitle}`,

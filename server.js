@@ -18,7 +18,7 @@ const DOWNLOADS_STATE_FILE = process.env.ELECTRON_USERDATA ? path.join(process.e
 const DEFAULT_DOWNLOADS_DIR = path.join(__dirname, 'downloads');
 if (!fs.existsSync(DEFAULT_DOWNLOADS_DIR)) fs.mkdirSync(DEFAULT_DOWNLOADS_DIR, { recursive: true });
 
-const { searchYouTube, downloadYouTubeAudioWithTemp } = require('track-dl/lib/youtube');
+const { searchYouTube, downloadYouTubeAudioWithTemp, getAudioFormats } = require('track-dl/lib/youtube');
 const { mergeMetadata } = require('track-dl/lib/merger');
 const { fetchSongInfoOptions, fetchCoverOptions, parseYouTubeTitle } = require('track-dl/lib/metadata');
 
@@ -160,8 +160,20 @@ app.post('/api/cover-options', async (req, res) => {
   }
 });
 
+app.post('/api/audio-formats', async (req, res) => {
+  const { videoUrl } = req.body;
+  if (!videoUrl) return res.status(400).json({ error: 'videoUrl required' });
+
+  try {
+    const formats = await getAudioFormats(videoUrl);
+    res.json({ formats });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/download', async (req, res) => {
-  const { query, videoUrl, title, uploader, manualMetadata } = req.body;
+  const { query, videoUrl, title, uploader, manualMetadata, sourceFormat, targetBitrate } = req.body;
   if (!query || !videoUrl) return res.status(400).json({ error: 'Query and videoUrl required' });
 
   const id = `dl-${++downloadIdCounter}-${Date.now()}`;
@@ -209,7 +221,28 @@ app.post('/api/download', async (req, res) => {
         '--js-runtimes', 'node',
         '--newline', '--progress', '--no-warnings'];
 
-      await execSpawn(YTDLP_PATH, ytdlpArgs, emitter, 'download');
+      if (sourceFormat && sourceFormat.format_id) {
+        ytdlpArgs.push('-f', sourceFormat.format_id);
+      }
+
+      const maxAttempts = 3;
+      let downloadDone = false;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          await execSpawn(YTDLP_PATH, ytdlpArgs, emitter, 'download');
+          downloadDone = true;
+          break;
+        } catch (e) {
+          const retryable = /403|Forbidden|unable to download/i.test(e.message || '');
+          if (attempt < maxAttempts && retryable) {
+            emitter.emit('progress', { stage: 'download', message: `Download failed (attempt ${attempt}), retrying...`, progress: 0 });
+            await new Promise(r => setTimeout(r, 2000));
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (!downloadDone) throw new Error('Download failed');
       emitter.emit('progress', { stage: 'extract', message: 'Audio extracted successfully' });
 
       const possibleExts = ['.mp3', '.m4a', '.webm', '.opus', '.aac'];
@@ -247,7 +280,7 @@ app.post('/api/download', async (req, res) => {
         year: bestMatch.year || '',
         genre: bestMatch.genre || '',
         albumArt: bestMatch.coverUrl || ''
-      }, finalPath);
+      }, finalPath, targetBitrate || 192);
 
       const state = loadDownloadsState();
       state.unshift({ id, name: path.basename(finalPath), path: finalPath, query, artist: safeArtist, title: safeTitle, downloadedAt: new Date().toISOString() });

@@ -29,8 +29,9 @@ node index.js song name
 1. Searches YouTube with query (6 results)
 2. Fetches metadata from Deezer -> iTunes (artist, title, album, year, genre, cover)
 3. Manually selects the YouTube source, metadata and album cover
-4. Downloads audio automatically
-5. Embeds metadata + album cover into MP3
+4. Selects a source audio bitrate (highest supported by default) and target MP3 bitrate (192 by default)
+5. Downloads audio from the chosen source format
+6. Embeds metadata + album cover into MP3 at the target bitrate
 
 ## Manual Selection (default)
 
@@ -39,7 +40,10 @@ Each step shows 6 options:
 1. Select a YouTube source
 2. Select metadata (artist, title, album, year, genre) from Deezer/iTunes
 3. Select an album cover
-4. Downloads audio and embeds the chosen metadata + cover
+4. Select a source audio bitrate (from the YouTube video's available formats; codecs without a
+   numeric bitrate fall back to a default for that codec, e.g. Opus = 128 kbps)
+5. Select a target MP3 bitrate (64, 128, 192, 256, 320; default 192)
+6. Downloads audio and embeds the chosen metadata + cover
 
 ## Characters & Shell Safety
 
