@@ -46,7 +46,8 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 
 - 🔍 **YouTube Search** — Searches YouTube and returns 6 results for manual review
 - 🏷️ **Smart Metadata** — Fetches artist, title, album, year, genre, and cover art from Deezer (with iTunes fallback), no API keys needed
-- 🖐️ **Manual Selection** — Pick the YouTube source, metadata, and album cover (6 options per step)
+- 🖐️ **Manual Selection** — Pick the YouTube source, metadata, album cover (6 options per step), and audio bitrate
+- 🎚️ **Bitrate Selection** — Choose the source audio quality from YouTube and the target MP3 bitrate (64–320 kbps)
 - 🎨 **Album Art Embedding** — Cover art is downloaded and embedded directly into the MP3 via FFmpeg
 - 🌓 **Dark & Light Theme** — Toggle between themes with persistent preference
 - 🗂️ **Download History** — Browse, re-download, or remove past downloads
@@ -78,9 +79,10 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 
 ### 📥 Audio Download
 - **yt-dlp Audio Extraction** — Downloads and extracts audio in one step (`-x --audio-format mp3 --audio-quality 0`)
+- **Source Format Selection** — Pick the exact audio format/bitrate available on YouTube (e.g. 128/192/256 kbps) or let it auto-select the best quality
+- **Target MP3 Bitrate** — Choose the final MP3 encoding bitrate: 64, 128, 192, 256, or 320 kbps (default 192, libmp3lame)
 - **FFmpeg Metadata Embedding** — Writes ID3v2.3 + ID3v1 tags with title, artist, album, year, genre
 - **Album Art Embedding** — Cover image attached as video stream to the MP3 via FFmpeg
-- **192kbps MP3** — High-quality libmp3lame encoding
 - **Duplicate Handling** — Auto-appends `(1)`, `(2)` when a file already exists
 - **Temp File Cleanup** — Temporary audio and cover files deleted after processing
 
@@ -88,7 +90,7 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 - **6-Step Progress Animation** — Visual pipeline with active/done/error states:
   - Searching YouTube → Fetching song metadata → Downloading audio → Extracting audio → Adding metadata & album art → Complete!
 - **Real-Time SSE Progress** — Live progress bar and status messages via Server-Sent Events
-- **Manual Selection Flow** — 3 steps with 6 options each: YouTube source → metadata → album cover (each skippable)
+- **Manual Selection Flow** — 4 steps with 6 options each: YouTube source → metadata → album cover (each skippable) → bitrate selection
 - **Settings Modal** — Download history manager, custom download path, yt-dlp updater
 - **Dark/Light Theme** — One-click toggle, persists across sessions
 - **System Tray** — Minimize to tray with Show / Open Folder / Quit
@@ -152,13 +154,14 @@ Example queries:
 
 ### 2. Select Source, Metadata & Cover
 
-The app always runs in manual selection mode — search returns 6 results and you walk through 3 steps:
+The app always runs in manual selection mode — search returns 6 results and you walk through 4 steps:
 
 1. **Select a YouTube source** — Pick from 6 YouTube results
 2. **Select metadata** — Choose artist, title, album, year, genre from 6 Deezer/iTunes options (or skip to use the YouTube title)
 3. **Select an album cover** — Choose from 6 cover options (or skip)
+4. **Select audio quality** — Choose the source audio format from YouTube (or `Auto (best quality)`), then the target MP3 bitrate (64–320 kbps)
 
-Then the audio downloads automatically with your chosen metadata and album art embedded.
+Then the audio downloads automatically with your chosen quality, metadata, and album art embedded.
 
 ### 3. Monitor Progress
 
