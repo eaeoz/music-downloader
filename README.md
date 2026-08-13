@@ -44,9 +44,9 @@ iex (iwr -useb https://tinyurl.com/msdlps1)
 
 Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes, and downloads high-quality MP3s with embedded album art, all in a beautiful desktop app:
 
-- 🔍 **YouTube Search** — Searches YouTube and returns smart-matched results
+- 🔍 **YouTube Search** — Searches YouTube and returns 6 results for manual review
 - 🏷️ **Smart Metadata** — Fetches artist, title, album, year, genre, and cover art from Deezer (with iTunes fallback), no API keys needed
-- 📥 **Auto & Manual Modes** — Let the app pick the best match or choose from 5 results yourself
+- 🖐️ **Manual Selection** — Pick the YouTube source, metadata, and album cover (6 options per step)
 - 🎨 **Album Art Embedding** — Cover art is downloaded and embedded directly into the MP3 via FFmpeg
 - 🌓 **Dark & Light Theme** — Toggle between themes with persistent preference
 - 🗂️ **Download History** — Browse, re-download, or remove past downloads
@@ -64,11 +64,9 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 ## ✨ Features
 
 ### 🔍 YouTube Search
-- **yt-dlp Integration** — Searches YouTube via `ytsearch` with configurable result limit
-- **Smart Matching** — Compares your query against video titles using word-scoring algorithm (exact match +50, partial +30, word hits +10)
-- **Preference Scoring** — Prioritizes official audio versions, penalizes live recordings
+- **yt-dlp Integration** — Searches YouTube via `ytsearch` returning 6 results
+- **Manual Selection** — Choose your preferred YouTube source from 6 results, then pick metadata and album cover
 - **Title Parsing** — Automatically strips clutter like `(Official Video)`, `(Lyrics)`, `ft.`, `feat.`, YouTube suffixes
-- **Manual Mode** — View 5 results and pick the one you want
 
 ### 🏷️ Metadata Fetching
 - **Deezer API (Primary)** — Searches `api.deezer.com` for artist, title, album, release year, genre
@@ -90,8 +88,8 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 - **6-Step Progress Animation** — Visual pipeline with active/done/error states:
   - Searching YouTube → Fetching song metadata → Downloading audio → Extracting audio → Adding metadata & album art → Complete!
 - **Real-Time SSE Progress** — Live progress bar and status messages via Server-Sent Events
-- **Auto & Manual Modes** — Toggle between automatic best-match and manual result selection
-- **Settings Modal** — Download mode toggle, download history manager, custom download path, yt-dlp updater
+- **Manual Selection Flow** — 3 steps with 6 options each: YouTube source → metadata → album cover (each skippable)
+- **Settings Modal** — Download history manager, custom download path, yt-dlp updater
 - **Dark/Light Theme** — One-click toggle, persists across sessions
 - **System Tray** — Minimize to tray with Show / Open Folder / Quit
 - **Toast Notifications** — Clear feedback for all actions
@@ -110,15 +108,14 @@ Music Downloader searches YouTube, fetches rich metadata from Deezer and iTunes,
 - Automatic download on `npm install` via postinstall script
 
 ### ⚙️ Settings
-- **Download Mode** — Toggle between Auto and Manual selection
 - **Download History** — View past downloads with redownload and remove
 - **Download Location** — Custom download directory via native folder picker
 - **yt-dlp Update** — Update the YouTube downloader binary
 
 ### 🛠️ CLI Tool (track-dl)
 - Standalone command-line interface: `track-dl "song name"`
-- Options: `--manual`, `--version`, `--help`, `--update`
-- Same matching and metadata pipeline, headless
+- Options: `--version`, `--help`, `--update`
+- Same manual selection and metadata pipeline, headless
 
 ---
 
@@ -153,12 +150,15 @@ Example queries:
 - `Eiffel 65 Blue`
 - `Bohemian Rhapsody`
 
-### 2. Choose Download Mode
+### 2. Select Source, Metadata & Cover
 
-Toggle between modes in **Settings** (gear icon):
+The app always runs in manual selection mode — search returns 6 results and you walk through 3 steps:
 
-- ⚡ **Auto Mode (Default)** — Searches YouTube, automatically finds the best matching result, and downloads it with proper metadata (artist, title, album, cover art from Deezer/iTunes)
-- 🖐️ **Manual Mode** — Shows 5 YouTube results for you to review. Click a result to select it, then click the download button (↓) to download. Metadata is still fetched from Deezer/iTunes for correct tagging.
+1. **Select a YouTube source** — Pick from 6 YouTube results
+2. **Select metadata** — Choose artist, title, album, year, genre from 6 Deezer/iTunes options (or skip to use the YouTube title)
+3. **Select an album cover** — Choose from 6 cover options (or skip)
+
+Then the audio downloads automatically with your chosen metadata and album art embedded.
 
 ### 3. Monitor Progress
 
@@ -184,7 +184,6 @@ When minimized, the app lives in your system tray:
 
 ### 6. Settings
 
-- **Download Mode** | Toggle between Auto and Manual selection
 - **Downloaded Songs** | View download history with re-download and remove options
 - **Download Location** | Custom download directory via folder picker
 - **Update yt-dlp** | Update the YouTube downloader to the latest version

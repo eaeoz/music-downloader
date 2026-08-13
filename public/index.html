@@ -202,6 +202,11 @@ body{
   cursor:pointer;transition:all 0.2s;
 }
 .back-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--surface2)}
+.skip-btn{
+  margin-top:8px;border-style:dashed;color:var(--text3);
+}
+.skip-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--surface2)}
+.step-info{font-size:12px;color:var(--text3);padding:0 4px 4px;flex-shrink:0}
 
 /* ── Download Overlay ── */
 .dl-overlay{
@@ -244,7 +249,7 @@ body{
 /* ── Settings Modal ── */
 .modal-overlay{
   display:none;position:fixed;inset:0;
-  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);
+  background:rgba(0,0,0,0.6);
   z-index:200;align-items:center;justify-content:center;
   -webkit-app-region:no-drag;
 }
@@ -418,7 +423,7 @@ body{
     <div class="search-container">
       <div class="search-box">
         <i class="fas fa-search"></i>
-        <input type="text" id="searchInput" placeholder="Search for a song..." autocomplete="off" spellcheck="false" oninput="this.value=this.value.replace(/[^a-zA-Z0-9 ]/g,'')">
+        <input type="text" id="searchInput" placeholder="Search for a song..." autocomplete="off" spellcheck="false">
       </div>
       <button class="send-btn" id="sendBtn" title="Download"><i class="fas fa-paper-plane"></i></button>
     </div>
@@ -467,14 +472,6 @@ body{
     </div>
     <div class="modal-body">
       <div class="settings-section">
-        <h4>Download Mode</h4>
-        <div class="toggle-row" id="modeToggle">
-          <div class="toggle-track"><div class="toggle-thumb"></div></div>
-          <div><div class="toggle-label">Manual Selection</div><div class="toggle-desc">Choose from 5 YouTube results</div></div>
-        </div>
-      </div>
-
-      <div class="settings-section">
         <h4>Downloaded Songs <span id="dlCount" style="font-weight:400;text-transform:none;margin-left:4px">(0)</span></h4>
         <div class="downloads-list" id="dlHistoryList">
           <div class="empty-state"><i class="fas fa-music"></i><p>No downloads yet</p></div>
@@ -506,7 +503,7 @@ body{
 
 <script>
 const $ = id => document.getElementById(id);
-const state = { mode: false, theme: 'dark', downloading: false, lastResults: null };
+const state = { theme: 'dark', downloading: false, lastResults: null, stage: 'youtube', query: '', selectedYoutube: null, selectedMetadata: null, metadataOptions: null };
 let dlEventSource = null;
 
 async function api(url, opts = {}) {
@@ -553,16 +550,24 @@ searchInput.addEventListener('contextmenu', async (e) => {
   try {
     const text = await navigator.clipboard.readText();
     if (text) {
-      searchInput.value = text.replace(/[^a-zA-Z0-9 ]/g,'');
+      searchInput.value = text;
       searchInput.focus();
     }
   } catch (_) {}
 });
 
 function enterPressed() {
-  if (state.mode && state.lastResults) {
+  if (state.lastResults) {
     const active = $('resultsContainer').querySelector('.result-item.active');
-    if (active) { startDownloadManual(); return; }
+    if (active) {
+      const idx = parseInt(active.dataset.idx);
+      const item = state.lastResults?.[idx];
+      if (!item) return;
+      if (state.stage === 'youtube') startMetadataStep(item);
+      else if (state.stage === 'metadata') startCoverStep(item);
+      else if (state.stage === 'cover') startDownloadManual(item.url);
+      return;
+    }
   }
   searchInput.focus();
   startDownload();
@@ -581,54 +586,8 @@ function showResults(results) {
     searchInput.style.display = '';
     return;
   }
-  container.classList.add('visible');
-  $('resultsInfo').textContent = `Showing ${results.length} results`;
-  $('resultsInfo').style.display = '';
 
-  if (state.mode) {
-    mainContent.classList.add('manual-mode');
-    $('sendBtn').style.display = 'none';
-    searchInput.style.display = 'none';
-    $('backBtn').style.display = '';
-  } else {
-    $('backBtn').style.display = 'none';
-  }
-
-  const listHtml = results.map((r, i) => `
-    <div class="result-item" data-idx="${i}">
-      <div class="ri-num">${i + 1}</div>
-      <div class="ri-info">
-        <div class="ri-title">${r.title}</div>
-        <div class="ri-channel">${r.uploader || 'Unknown'}</div>
-      </div>
-      <div class="ri-dur">${r.duration ? formatDuration(r.duration) : ''}</div>
-      <button class="ri-dl-btn show" data-idx="${i}" title="Download"><i class="fas fa-download"></i></button>
-    </div>
-  `).join('');
-
-  container.innerHTML = `<div class="results-info" id="resultsInfo">${$('resultsInfo').textContent}</div>${listHtml}<button class="back-btn" id="backBtn" style="display:${state.mode ? '' : 'none'}"><i class="fas fa-arrow-left"></i> Back</button>`;
-
-  container.querySelectorAll('.ri-info').forEach(el => {
-    el.addEventListener('click', (ev) => {
-      const item = el.closest('.result-item');
-      container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
-      item.classList.add('active');
-      state.selectedIdx = parseInt(item.dataset.idx);
-      ev.stopPropagation();
-    });
-  });
-  container.querySelectorAll('.ri-dl-btn').forEach(btn => {
-    btn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      const item = btn.closest('.result-item');
-      container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
-      item.classList.add('active');
-      state.selectedIdx = parseInt(btn.dataset.idx);
-      startDownloadManual();
-    });
-  });
-  container.querySelectorAll('.result-item')[0]?.classList.add('active');
-  state.selectedIdx = 0;
+  showYouTubeResults(results);
 }
 
 function formatDuration(s) {
@@ -638,6 +597,11 @@ function formatDuration(s) {
 }
 
 function goBack() {
+  state.stage = 'youtube';
+  state.selectedYoutube = null;
+  state.selectedMetadata = null;
+  state.metadataOptions = null;
+  state.youtubeResults = null;
   searchInput.value = '';
   restoreSearchBar();
   showResults(null);
@@ -650,56 +614,188 @@ function restoreSearchBar() {
   searchInput.style.display = '';
 }
 
+function renderOptionList(header, items, renderItem, onPick, onBack, opts = {}) {
+  state.lastResults = items;
+  state.selectedIdx = 0;
+  const container = $('resultsContainer');
+  container.classList.add('visible');
+  const skipHtml = opts.skipLabel
+    ? `<button class="back-btn skip-btn" id="skipBtn"><i class="fas fa-forward"></i> ${opts.skipLabel}</button>`
+    : '';
+  const listHtml = items.map((item, i) => renderItem(item, i)).join('');
+  container.innerHTML = `
+    <div class="results-info" id="resultsInfo">${header}</div>
+    ${listHtml}
+    ${skipHtml}
+    <button class="back-btn" id="backBtn"><i class="fas fa-arrow-left"></i> Back</button>`;
+  $('backBtn').addEventListener('click', () => onBack());
+  const skipBtn = $('skipBtn');
+  if (skipBtn) skipBtn.addEventListener('click', () => opts.onSkip());
+  items.forEach((item, i) => {
+    const row = container.querySelector(`[data-idx="${i}"]`);
+    if (!row) return;
+    row.querySelector('.ri-info').addEventListener('click', (ev) => {
+      container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
+      row.classList.add('active');
+      state.selectedIdx = i;
+      ev.stopPropagation();
+    });
+    const pickBtn = row.querySelector('.ri-dl-btn');
+    if (pickBtn) {
+      pickBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        container.querySelectorAll('.result-item').forEach(e => e.classList.remove('active'));
+        row.classList.add('active');
+        state.selectedIdx = i;
+        onPick(item, i);
+      });
+    }
+  });
+  container.querySelectorAll('.result-item')[0]?.classList.add('active');
+}
+
+function showYouTubeResults(results) {
+  state.stage = 'youtube';
+  state.youtubeResults = results;
+  state.selectedYoutube = null;
+  state.selectedMetadata = null;
+  $('mainContent').classList.add('manual-mode');
+  $('sendBtn').style.display = 'none';
+  searchInput.style.display = 'none';
+  renderOptionList(
+    `Select a YouTube source (${results.length} results)`,
+    results,
+    (r, i) => `<div class="result-item" data-idx="${i}">
+      <div class="ri-num">${i + 1}</div>
+      <div class="ri-info">
+        <div class="ri-title">${r.title}</div>
+        <div class="ri-channel">${r.uploader || 'Unknown'}</div>
+      </div>
+      <div class="ri-dur">${r.duration ? formatDuration(r.duration) : ''}</div>
+      <button class="ri-dl-btn" title="Choose"><i class="fas fa-check"></i></button>
+    </div>`,
+    (item) => startMetadataStep(item),
+    () => goBack()
+  );
+}
+
+async function startMetadataStep(youtubeItem) {
+  state.selectedYoutube = youtubeItem;
+  state.selectedMetadata = null;
+  state.metadataOptions = null;
+  const res = await api('/api/metadata-options', {
+    method: 'POST',
+    body: JSON.stringify({ query: state.query, videoTitle: youtubeItem.title, uploader: youtubeItem.uploader })
+  });
+  const options = (res && res.options) || [];
+  if (!options.length) {
+    showToast('No metadata found', 'error');
+    return;
+  }
+  showMetadataOptions(options);
+}
+
+function showMetadataOptions(options) {
+  state.stage = 'metadata';
+  state.metadataOptions = options;
+  renderOptionList(
+    'Select metadata',
+    options,
+    (m, i) => `<div class="result-item" data-idx="${i}">
+      <div class="ri-num">${i + 1}</div>
+      <div class="ri-info">
+        <div class="ri-title">${m.artist} - ${m.title}</div>
+        <div class="ri-channel">${[m.album, m.year, m.genre, m.source].filter(Boolean).join(' · ')}</div>
+      </div>
+      <button class="ri-dl-btn" title="Choose"><i class="fas fa-check"></i></button>
+    </div>`,
+    (m) => startCoverStep(m),
+    () => showYouTubeResults(state.youtubeResults),
+    { skipLabel: 'Skip metadata (use YouTube title)', onSkip: () => startCoverStep(null) }
+  );
+}
+
+async function startCoverStep(metadata) {
+  state.selectedMetadata = metadata;
+  state.stage = 'cover';
+  let options = [];
+  if (metadata && metadata.artist && metadata.title) {
+    const res = await api('/api/cover-options', { method: 'POST', body: JSON.stringify({ metadata }) });
+    options = (res && res.options) || [];
+  }
+  if (!options.length) {
+    if (metadata && metadata.coverUrl) {
+      options = [{ url: metadata.coverUrl, source: 'Selected metadata', label: `${metadata.artist} - ${metadata.album || metadata.title}` }];
+    } else {
+      startDownloadManual(metadata ? (metadata.coverUrl || '') : '');
+      return;
+    }
+  }
+  showCoverOptions(options);
+}
+
+function showCoverOptions(options) {
+  state.stage = 'cover';
+  renderOptionList(
+    'Select album cover',
+    options,
+    (c, i) => `<div class="result-item" data-idx="${i}">
+      <div class="ri-num">${i + 1}</div>
+      <div class="ri-info">
+        <div class="ri-title">${c.label}</div>
+        <div class="ri-channel">${c.source}</div>
+      </div>
+      <button class="ri-dl-btn" title="Choose"><i class="fas fa-check"></i></button>
+    </div>`,
+    (c) => startDownloadManual(c.url),
+    () => showMetadataOptions(state.metadataOptions),
+    { skipLabel: 'Skip album cover', onSkip: () => startDownloadManual('') }
+  );
+}
+
 async function startDownload() {
   const query = searchInput.value.trim();
   if (!query || state.downloading) return;
+  state.query = query;
   restoreSearchBar();
   showResults(null);
-
-  if (state.mode) {
-    state.downloading = true;
-    $('sendBtn').disabled = true;
-    searchInput.disabled = true;
-    const res = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'manual' }) });
-    state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false;
-    if (!res || !res.results || !res.results.length) {
-      restoreSearchBar();
-      showToast('No results found', 'error');
-      searchInput.focus();
-      return;
-    }
-    showResults(res.results);
-    searchInput.focus();
-    return;
-  }
 
   state.downloading = true;
   $('sendBtn').disabled = true;
   searchInput.disabled = true;
-  const searchRes = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'auto' }) });
-  if (!searchRes || !searchRes.bestMatch) {
-    if (searchRes?.noResults) {
-      showToast('No YouTube results found', 'error');
-    } else {
-      showToast('No matching song found', 'error');
-    }
-    state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false; searchInput.focus();
+  const res = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'manual' }) });
+  state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false;
+  if (!res || !res.results || !res.results.length) {
+    restoreSearchBar();
+    showToast('No results found', 'error');
+    searchInput.focus();
     return;
   }
-  const bm = searchRes.bestMatch;
-  startDownloadUI(query, bm.video.url, bm.title, bm.uploader, null);
+  showResults(res.results);
+  searchInput.focus();
 }
 
-function startDownloadManual() {
-  const query = searchInput.value.trim();
-  const selected = $('resultsContainer').querySelector('.result-item.active');
-  if (!selected) { showToast('Select a result first', 'error'); return; }
-  const idx = parseInt(selected.dataset.idx);
-  const res = state.lastResults?.[idx];
-  if (!res) return;
+function startDownloadManual(coverUrl) {
+  const yt = state.selectedYoutube;
+  if (!yt) { showToast('Select a YouTube result first', 'error'); return; }
+  const md = state.selectedMetadata;
+  let manualMetadata = null;
+  if (md) {
+    manualMetadata = {
+      artist: md.artist || '',
+      title: md.title || yt.title,
+      album: md.album || '',
+      year: md.year || '',
+      genre: md.genre || '',
+      coverUrl: coverUrl !== undefined ? (coverUrl || '') : (md.coverUrl || '')
+    };
+  } else {
+    manualMetadata = { skipMetadata: true };
+  }
+  state.stage = 'youtube';
   restoreSearchBar();
   showResults(null);
-  startDownloadUI(query, res.url, res.title, res.uploader, { artist: '', title: res.title });
+  startDownloadUI(state.query, yt.url, yt.title, yt.uploader, manualMetadata);
 }
 
 function startDownloadUI(query, videoUrl, title, uploader, manualMetadata) {
@@ -786,22 +882,15 @@ function resetUI() {
   if (dlEventSource) { dlEventSource.close(); dlEventSource = null; }
 }
 
+function closeSettings() {
+  $('settingsModal').classList.remove('open');
+  goBack();
+}
 $('settingsBtn').addEventListener('click', () => { $('settingsModal').classList.add('open'); loadSettingsUI(); });
-$('closeSettings').addEventListener('click', () => $('settingsModal').classList.remove('open'));
+$('closeSettings').addEventListener('click', closeSettings);
 $('settingsModal').addEventListener('click', (e) => {
-  if (e.target === $('settingsModal')) $('settingsModal').classList.remove('open');
+  if (e.target === $('settingsModal')) closeSettings();
 });
-
-const modeToggle = $('modeToggle');
-modeToggle.addEventListener('click', () => {
-  state.mode = !state.mode;
-  modeToggle.classList.toggle('active', state.mode);
-  localStorage.setItem('md-mode', state.mode ? 'manual' : 'auto');
-  $('resultsContainer').classList.remove('visible');
-  state.lastResults = null;
-});
-const savedMode = localStorage.getItem('md-mode');
-if (savedMode === 'manual') { state.mode = true; modeToggle.classList.add('active'); }
 
 async function loadSettingsUI() {
   const dlHistory = await api('/api/downloads');
@@ -917,10 +1006,6 @@ function listenUpdateProgress(id) {
 $('closeBtn').addEventListener('click', () => {
   if (window.electronAPI) window.electronAPI.closeWindow();
   else window.close();
-});
-
-$('resultsContainer').addEventListener('click', (e) => {
-  if (e.target.closest('#backBtn')) goBack();
 });
 
 $('folderBtn').addEventListener('click', async () => {

@@ -20,7 +20,7 @@ if (!fs.existsSync(DEFAULT_DOWNLOADS_DIR)) fs.mkdirSync(DEFAULT_DOWNLOADS_DIR, {
 
 const { searchYouTube, downloadYouTubeAudioWithTemp } = require('track-dl/lib/youtube');
 const { mergeMetadata } = require('track-dl/lib/merger');
-const { findBestSongMatch, fetchSongInfo, parseYouTubeTitle } = require('track-dl/lib/metadata');
+const { fetchSongInfoOptions, fetchCoverOptions, parseYouTubeTitle } = require('track-dl/lib/metadata');
 
 const downloadEmitters = {};
 let downloadIdCounter = 0;
@@ -110,21 +110,51 @@ app.get('/api/version', (req, res) => {
 });
 
 app.post('/api/search', async (req, res) => {
-  let { query, mode } = req.body;
+  let { query } = req.body;
   if (!query) return res.status(400).json({ error: 'Query required' });
-  query = query.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+  query = query.replace(/[\r\n]+/g, ' ').trim();
   if (!query) return res.status(400).json({ error: 'Invalid query' });
 
   try {
-    const results = await searchYouTube(query, 5);
-    if (!results.length) return res.json({ results: [], bestMatch: null, noResults: true });
-
-    if (mode === 'auto') {
-      const bestMatch = await findBestSongMatch(query, results);
-      return res.json({ results, bestMatch });
-    }
-
+    const results = await searchYouTube(query, 6);
     res.json({ results, bestMatch: null });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/metadata-options', async (req, res) => {
+  const { query, videoTitle, uploader } = req.body;
+  const q = (query || '').replace(/[\r\n]+/g, ' ').trim() || videoTitle;
+  if (!q) return res.status(400).json({ error: 'Query required' });
+
+  try {
+    let options = await fetchSongInfoOptions(q, 6);
+    if (!options.length) {
+      const parsed = parseYouTubeTitle(videoTitle || q);
+      options = [{
+        artist: parsed.artist || uploader || '',
+        title: parsed.title || videoTitle || q,
+        album: '',
+        year: '',
+        genre: '',
+        coverUrl: '',
+        source: 'YouTube title'
+      }];
+    }
+    res.json({ options });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/cover-options', async (req, res) => {
+  const { metadata } = req.body;
+  if (!metadata) return res.status(400).json({ error: 'Metadata required' });
+
+  try {
+    const options = await fetchCoverOptions(metadata, 6);
+    res.json({ options });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -145,30 +175,25 @@ app.post('/api/download', async (req, res) => {
       emitter.emit('progress', { stage: 'search', message: `Searching YouTube for: "${query}"` });
 
       let bestMatch;
-      if (manualMetadata) {
-        let songInfo = null;
-        try { songInfo = await Promise.race([fetchSongInfo(query), new Promise(r => setTimeout(() => r(null), 6000))]); } catch (_) {}
-        const parsed = parseYouTubeTitle(title);
+      if (manualMetadata && typeof manualMetadata === 'object' && (manualMetadata.artist || manualMetadata.title)) {
         bestMatch = {
-          artist: songInfo?.artist || parsed.artist || uploader,
-          title: songInfo?.title || parsed.title || title,
-          album: songInfo?.album || '',
-          year: songInfo?.year || '',
-          genre: songInfo?.genre || '',
-          coverUrl: songInfo?.coverUrl || '',
+          artist: manualMetadata.artist || uploader || '',
+          title: manualMetadata.title || title || '',
+          album: manualMetadata.album || '',
+          year: manualMetadata.year || '',
+          genre: manualMetadata.genre || '',
+          coverUrl: manualMetadata.coverUrl || '',
           video: { url: videoUrl, title, uploader }
         };
       } else {
-        let songInfo = null;
-        try { songInfo = await Promise.race([fetchSongInfo(query), new Promise(r => setTimeout(() => r(null), 6000))]); } catch (_) {}
         const parsed = parseYouTubeTitle(title);
         bestMatch = {
-          artist: songInfo?.artist || parsed.artist || uploader,
-          title: songInfo?.title || parsed.title || title,
-          album: songInfo?.album || '',
-          year: songInfo?.year || '',
-          genre: songInfo?.genre || '',
-          coverUrl: songInfo?.coverUrl || '',
+          artist: parsed.artist || uploader,
+          title: parsed.title || title,
+          album: '',
+          year: '',
+          genre: '',
+          coverUrl: '',
           video: { url: videoUrl, title, uploader }
         };
       }
@@ -181,6 +206,7 @@ app.post('/api/download', async (req, res) => {
       const ytdlpArgs = [videoUrl, '-x', '--audio-format', 'mp3', '--audio-quality', '0',
         '-o', path.join(getDownloadsDir(), 'temp_audio_') + id,
         '--ffmpeg-location', FFMPEG_PATH,
+        '--js-runtimes', 'node',
         '--newline', '--progress', '--no-warnings'];
 
       await execSpawn(YTDLP_PATH, ytdlpArgs, emitter, 'download');
