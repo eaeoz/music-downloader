@@ -505,7 +505,7 @@ select.setting-input{cursor:pointer;appearance:auto}
 
 <script>
 const $ = id => document.getElementById(id);
-const state = { theme: 'dark', downloading: false, lastResults: null, stage: 'youtube', query: '', selectedYoutube: null, selectedMetadata: null, metadataOptions: null, coverOptions: null, selectedCoverUrl: '', audioFormats: null };
+const state = { theme: 'dark', downloading: false, busy: false, flowToken: 0, lastResults: null, stage: 'youtube', query: '', selectedYoutube: null, selectedMetadata: null, metadataOptions: null, coverOptions: null, selectedCoverUrl: '', audioFormats: null };
 const TARGET_BITRATES = [64, 128, 192, 256, 320];
 let dlEventSource = null;
 
@@ -521,6 +521,15 @@ function showToast(msg, type = 'success') {
   const t = $('toast');
   t.textContent = msg; t.className = 'toast show ' + type;
   clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function showLoadingState(message) {
+  state.lastResults = null;
+  const container = $('resultsContainer');
+  container.classList.add('visible');
+  container.innerHTML = `
+    <div class="results-info" id="resultsInfo">${message}</div>
+    <div style="display:flex;justify-content:center;align-items:center;padding:16px"><div class="spinner"></div></div>`;
 }
 
 function setTheme(t) {
@@ -560,6 +569,7 @@ searchInput.addEventListener('contextmenu', async (e) => {
 });
 
 function enterPressed() {
+  if (state.busy || state.downloading) return;
   if (state.lastResults) {
     const active = $('resultsContainer').querySelector('.result-item.active');
     if (active) {
@@ -601,6 +611,8 @@ function formatDuration(s) {
 }
 
 function goBack() {
+  state.flowToken++;
+  state.busy = false;
   state.stage = 'youtube';
   state.selectedYoutube = null;
   state.selectedMetadata = null;
@@ -677,16 +689,22 @@ function showYouTubeResults(results) {
 }
 
 async function startMetadataStep(youtubeItem) {
+  if (state.busy) return;
+  const token = ++state.flowToken;
+  state.busy = true;
   state.selectedYoutube = youtubeItem;
   state.selectedMetadata = null;
   state.metadataOptions = null;
   state.coverOptions = null;
   state.selectedCoverUrl = '';
   state.audioFormats = null;
+  showLoadingState('Fetching metadata...');
   const res = await api('/api/metadata-options', {
     method: 'POST',
     body: JSON.stringify({ query: state.query, videoTitle: youtubeItem.title, uploader: youtubeItem.uploader })
   });
+  if (token !== state.flowToken) return;
+  state.busy = false;
   const options = (res && res.options) || [];
   if (!options.length) {
     showToast('No metadata found', 'error');
@@ -716,13 +734,19 @@ function showMetadataOptions(options) {
 }
 
 async function startCoverStep(metadata) {
+  if (state.busy) return;
+  const token = ++state.flowToken;
+  state.busy = true;
   state.selectedMetadata = metadata;
   state.stage = 'cover';
+  showLoadingState('Fetching album covers...');
   let options = [];
   if (metadata && metadata.artist && metadata.title) {
     const res = await api('/api/cover-options', { method: 'POST', body: JSON.stringify({ metadata }) });
+    if (token !== state.flowToken) return;
     options = (res && res.options) || [];
   }
+  state.busy = false;
   if (!options.length) {
     if (metadata && metadata.coverUrl) {
       options = [{ url: metadata.coverUrl, source: 'Selected metadata', label: `${metadata.artist} - ${metadata.album || metadata.title}` }];
@@ -755,13 +779,19 @@ function showCoverOptions(options) {
 }
 
 async function startBitrateStep(coverUrl) {
+  if (state.busy) return;
+  const token = ++state.flowToken;
+  state.busy = true;
   state.selectedCoverUrl = coverUrl || '';
   state.stage = 'bitrate';
   state.lastResults = null;
   if (!state.audioFormats && state.selectedYoutube) {
+    showLoadingState('Fetching audio formats...');
     const res = await api('/api/audio-formats', { method: 'POST', body: JSON.stringify({ videoUrl: state.selectedYoutube.url }) });
+    if (token !== state.flowToken) return;
     state.audioFormats = (res && res.formats) || [];
   }
+  state.busy = false;
   renderBitrateStep();
 }
 
@@ -802,6 +832,7 @@ function renderBitrateStep() {
 }
 
 function startDownloadFromBitrate() {
+  if (state.downloading) return;
   const srcSel = $('srcBitrateSelect');
   const tgtSel = $('tgtBitrateSelect');
   const srcIdx = srcSel ? parseInt(srcSel.value, 10) : -1;
@@ -812,7 +843,7 @@ function startDownloadFromBitrate() {
 
 async function startDownload() {
   const query = searchInput.value.trim();
-  if (!query || state.downloading) return;
+  if (!query || state.downloading || state.busy) return;
   state.query = query;
   restoreSearchBar();
   showResults(null);
@@ -820,8 +851,12 @@ async function startDownload() {
   state.downloading = true;
   $('sendBtn').disabled = true;
   searchInput.disabled = true;
+  const token = ++state.flowToken;
+  state.busy = true;
   const res = await api('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: 'manual' }) });
+  state.busy = false;
   state.downloading = false; $('sendBtn').disabled = false; searchInput.disabled = false;
+  if (token !== state.flowToken) return;
   if (!res || !res.results || !res.results.length) {
     restoreSearchBar();
     showToast('No results found', 'error');
