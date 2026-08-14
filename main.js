@@ -101,7 +101,7 @@ function startBackend() {
   const appPath = getAppPath();
 
   const trackDlPath = (() => {
-    if (!app.isPackaged) return path.join(appPath, 'node_modules', 'track-dl');
+    if (!app.isPackaged) return path.join(appPath, 'track-dl');
     const bundled = path.join(process.resourcesPath, 'track-dl');
     if (fs.existsSync(bundled)) return bundled;
     return path.join(appPath, '..', 'track-dl');

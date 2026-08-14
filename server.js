@@ -11,7 +11,7 @@ process.on('uncaughtException', (err) => console.error('Uncaught:', err));
 
 const app = express();
 const PORT = process.env.PORT || 3666;
-const TRACK_DL_DIR = process.env.TRACK_DL_PATH || path.join(__dirname, 'node_modules', 'track-dl');
+const TRACK_DL_DIR = process.env.TRACK_DL_PATH || path.join(__dirname, '..', 'track-dl');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SETTINGS_FILE = process.env.ELECTRON_USERDATA ? path.join(process.env.ELECTRON_USERDATA, 'settings.json') : path.join(__dirname, 'settings.json');
 const DOWNLOADS_STATE_FILE = process.env.ELECTRON_USERDATA ? path.join(process.env.ELECTRON_USERDATA, 'downloads-state.json') : path.join(__dirname, 'downloads-state.json');
@@ -19,9 +19,9 @@ const DOWNLOADS_STATE_FILE = process.env.ELECTRON_USERDATA ? path.join(process.e
 const DEFAULT_DOWNLOADS_DIR = path.join(__dirname, 'downloads');
 if (!fs.existsSync(DEFAULT_DOWNLOADS_DIR)) fs.mkdirSync(DEFAULT_DOWNLOADS_DIR, { recursive: true });
 
-const { searchYouTube, downloadYouTubeAudioWithTemp, getAudioFormats } = require('track-dl/lib/youtube');
-const { mergeMetadata } = require('track-dl/lib/merger');
-const { fetchSongInfoOptions, fetchCoverOptions, parseYouTubeTitle } = require('track-dl/lib/metadata');
+const { searchYouTube, downloadYouTubeAudioWithTemp, getAudioFormats } = require(path.join(TRACK_DL_DIR, 'lib', 'youtube'));
+const { mergeMetadata } = require(path.join(TRACK_DL_DIR, 'lib', 'merger'));
+const { fetchSongInfoOptions, fetchCoverOptions, parseYouTubeTitle } = require(path.join(TRACK_DL_DIR, 'lib', 'metadata'));
 const { Shazam } = require('node-shazam');
 
 const downloadEmitters = {};
