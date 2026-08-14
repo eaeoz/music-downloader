@@ -829,12 +829,6 @@ listenBtn.addEventListener('click', async () => {
   searchInput.value = `${track.artist} - ${track.title}`;
   searchInput.focus();
   showToast(`Detected: ${track.title} by ${track.artist}`, 'success');
-
-  const previewRes = await api('/api/preview', { method: 'POST', body: JSON.stringify({ query: `${track.artist} ${track.title}` }) });
-  if (token === listenToken) {
-    const p = previewRes && previewRes.track;
-    if (p && p.previewUrl) playPreviewTrack(p);
-  }
 });
 
 listenAudio.addEventListener('pause', () => { if (!listenAudio.ended) listenReset(); });
