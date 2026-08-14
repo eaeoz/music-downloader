@@ -665,31 +665,6 @@ function listenReset() {
   listenAudio.pause();
 }
 
-function playPreviewTrack(track) {
-  listenBtn.innerHTML = '<i class="fas fa-stop"></i>';
-  listenBtn.classList.add('playing');
-  listenAudio.src = track.previewUrl;
-  listenAudio.onended = listenReset;
-  listenAudio.play().catch(() => listenReset());
-  showToast(`Now playing (${track.source}): ${track.title}`);
-}
-
-async function previewFromQuery(query) {
-  const token = listenToken;
-  listenBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>';
-  const res = await api('/api/preview', { method: 'POST', body: JSON.stringify({ query }) });
-  if (token !== listenToken) return;
-  const track = res && res.track;
-  if (!track || !track.previewUrl) {
-    listenBtn.innerHTML = '<i class="fas fa-play"></i>';
-    showToast('No preview found', 'error');
-    return;
-  }
-  searchInput.value = `${track.artist} - ${track.title}`;
-  searchInput.focus();
-  playPreviewTrack(track);
-}
-
 function floatChunksToS16(chunks, rate) {
   const total = chunks.reduce((n, c) => n + c.length, 0);
   const all = new Float32Array(total);
@@ -798,8 +773,6 @@ listenBtn.addEventListener('click', async () => {
   if (state.busy || state.downloading) return;
   if (listenBtn.classList.contains('playing')) { listenReset(); return; }
   const token = ++listenToken;
-  const query = searchInput.value.trim();
-  if (query) { previewFromQuery(query); return; }
 
   let pcm = null;
   try {
@@ -826,6 +799,7 @@ listenBtn.addEventListener('click', async () => {
   const track = res && res.track;
   if (!track || !track.title) { showToast('No match found', 'error'); return; }
 
+  searchInput.value = '';
   searchInput.value = `${track.artist} - ${track.title}`;
   searchInput.focus();
   showToast(`Detected: ${track.title} by ${track.artist}`, 'success');
