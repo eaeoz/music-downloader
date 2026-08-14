@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
 
@@ -21,6 +22,7 @@ if (!fs.existsSync(DEFAULT_DOWNLOADS_DIR)) fs.mkdirSync(DEFAULT_DOWNLOADS_DIR, {
 const { searchYouTube, downloadYouTubeAudioWithTemp, getAudioFormats } = require('track-dl/lib/youtube');
 const { mergeMetadata } = require('track-dl/lib/merger');
 const { fetchSongInfoOptions, fetchCoverOptions, parseYouTubeTitle } = require('track-dl/lib/metadata');
+const { Shazam } = require('node-shazam');
 
 const downloadEmitters = {};
 let downloadIdCounter = 0;
@@ -61,6 +63,85 @@ const FFMPEG_PATH = path.dirname(require('ffmpeg-static'));
 
 function sanitize(str) {
   return str.replace(/[<>:"/\\|?*]/g, '').trim();
+}
+
+function httpsRequest(url, method = 'GET', headers = {}, body = null) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const options = { hostname: u.hostname, path: u.pathname + u.search, method, headers };
+    if (body) options.headers['Content-Length'] = Buffer.byteLength(body);
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (c) => data += c);
+      res.on('end', () => resolve(data));
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+function getSpotifyCredentials() {
+  const settings = loadSettings();
+  return {
+    id: process.env.SPOTIFY_CLIENT_ID || settings.spotifyClientId || '',
+    secret: process.env.SPOTIFY_CLIENT_SECRET || settings.spotifyClientSecret || ''
+  };
+}
+
+async function spotifyPreview(query) {
+  const creds = getSpotifyCredentials();
+  if (!creds.id || !creds.secret) return null;
+  const auth = Buffer.from(`${creds.id}:${creds.secret}`).toString('base64');
+  const tokenRes = await httpsRequest('https://accounts.spotify.com/api/token', 'POST',
+    { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    'grant_type=client_credentials');
+  const tokenJson = JSON.parse(tokenRes);
+  if (!tokenJson.access_token) return null;
+  const searchRes = await httpsRequest(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`, 'GET',
+    { Authorization: `Bearer ${tokenJson.access_token}` });
+  const searchJson = JSON.parse(searchRes);
+  const track = searchJson.tracks?.items?.[0];
+  if (!track || !track.preview_url) return null;
+  return {
+    artist: track.artists?.[0]?.name || '',
+    title: track.name || '',
+    previewUrl: track.preview_url,
+    source: 'Spotify'
+  };
+}
+
+async function deezerPreview(query) {
+  const data = await httpsRequest(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`);
+  const json = JSON.parse(data);
+  const t = (json.data || []).find(x => x.preview);
+  if (!t) return null;
+  return { artist: t.artist?.name || '', title: t.title || '', previewUrl: t.preview, source: 'Deezer' };
+}
+
+async function deezerChartTrack() {
+  const data = await httpsRequest('https://api.deezer.com/chart/0/tracks?limit=50');
+  const json = JSON.parse(data);
+  const tracks = (json.data || []).filter(t => t.preview);
+  if (!tracks.length) return null;
+  const pick = tracks[Math.floor(Math.random() * tracks.length)];
+  return { artist: pick.artist?.name || '', title: pick.title || '', previewUrl: pick.preview, source: 'Deezer Chart' };
+}
+
+let shazamInstance = null;
+
+function s16LEToSamplesArray(buf) {
+  const samples = new Array(buf.length / 2);
+  for (let i = 0; i < samples.length; i++) samples[i] = buf.readInt16LE(i * 2);
+  return samples;
+}
+
+async function shazamRecognize(pcmBuffer) {
+  if (!shazamInstance) shazamInstance = new Shazam();
+  const samples = s16LEToSamplesArray(pcmBuffer);
+  const res = await shazamInstance.fullRecognizeSong(samples);
+  if (!res || !res.track || !res.track.title) return null;
+  return { artist: res.track.subtitle || '', title: res.track.title };
 }
 
 function execSpawn(command, args, eventEmitter, stage) {
@@ -167,6 +248,40 @@ app.post('/api/audio-formats', async (req, res) => {
   try {
     const formats = await getAudioFormats(videoUrl);
     res.json({ formats });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/preview', async (req, res) => {
+  const query = (req.body.query || '').replace(/[\r\n]+/g, ' ').trim();
+
+  try {
+    let track = null;
+    if (query) {
+      track = await spotifyPreview(query);
+      if (!track) track = await deezerPreview(query);
+    } else {
+      track = await deezerChartTrack();
+    }
+    res.json({ track });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/recognize', async (req, res) => {
+  const { pcmBase64 } = req.body;
+  if (!pcmBase64) return res.status(400).json({ error: 'PCM required' });
+
+  try {
+    const buf = Buffer.from(pcmBase64, 'base64');
+    if (buf.length < 16000) return res.json({ track: null });
+    let chunk = buf;
+    const windowBytes = 16000 * 7 * 2;
+    if (buf.length > windowBytes) chunk = buf.slice(buf.length - windowBytes);
+    const track = await shazamRecognize(chunk);
+    res.json({ track });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

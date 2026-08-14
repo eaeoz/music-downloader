@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, dialog, Menu, Tray, nativeImage, screen } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, dialog, Menu, Tray, nativeImage, screen, desktopCapturer, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -10,6 +10,15 @@ const serverReady = new Promise(resolve => { serverReadyResolve = resolve; });
 let isQuitting = false;
 
 const PORT = 3666;
+
+function listenLog(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  console.log(line);
+  try {
+    const f = path.join(getUserDataPath(), 'listen-debug.log');
+    fs.appendFileSync(f, line + '\n');
+  } catch (_) {}
+}
 
 function getAppPath() {
   return app.isPackaged ? path.join(process.resourcesPath, 'app') : __dirname;
@@ -194,6 +203,10 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  mainWindow.webContents.on('console-message', (_e, _level, message) => {
+    if (message && message.includes('[listen]')) listenLog('[renderer] ' + message);
+  });
+
   mainWindow.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith(`http://127.0.0.1:${PORT}`)) {
       e.preventDefault();
@@ -317,6 +330,19 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+      listenLog('handler called');
+      desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
+        .then((sources) => {
+          const source = sources.find(s => s.id.startsWith('screen:')) || sources[0];
+          listenLog('using source: ' + (source ? source.id : 'none'));
+          if (!source) return callback({});
+          callback({ video: source, audio: 'loopback' });
+        })
+        .catch((e) => { listenLog('getSources error: ' + e.message); callback({}); });
+    });
+
+    ipcMain.handle('listen-capable', () => true);
     createWindow();
     createTray(getAppPath());
   });

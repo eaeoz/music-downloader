@@ -119,7 +119,7 @@ body{
   flex:1;position:relative;
 }
 .search-box input{
-  width:100%;padding:14px 16px 14px 46px;
+  width:100%;padding:14px 52px 14px 46px;
   border-radius:var(--radius);
   border:2px solid var(--border);
   background:var(--surface);
@@ -135,6 +135,27 @@ body{
   color:var(--text3);font-size:16px;transition:color var(--transition);
 }
 .search-box input:focus + i{color:var(--primary)}
+.listen-btn{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;border-radius:50%;
+  border:none;background:linear-gradient(135deg,var(--accent),#0891b2);
+  color:#fff;font-size:12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 10px rgba(6,182,212,0.4);
+  transition:all var(--transition);
+}
+.listen-btn:hover{transform:translateY(-50%) scale(1.08);box-shadow:0 4px 16px rgba(6,182,212,0.6)}
+.listen-btn:active{transform:translateY(-50%) scale(0.92)}
+.listen-btn.playing{animation:listenPulse 1.5s ease-in-out infinite}
+.listen-btn.listening{animation:micPulse 1.2s ease-in-out infinite;background:linear-gradient(135deg,#f43f5e,#0891b2)}
+@keyframes listenPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(6,182,212,0.6)}
+  50%{box-shadow:0 0 0 8px rgba(6,182,212,0)}
+}
+@keyframes micPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(244,63,94,0.7)}
+  50%{box-shadow:0 0 0 10px rgba(244,63,94,0)}
+}
 .send-btn{
   width:48px;height:48px;border-radius:var(--radius);
   border:none;
@@ -246,6 +267,55 @@ body{
   border-radius:2px;transition:width 0.3s;width:0%;
 }
 .dl-overlay .dl-detail{font-size:12px;color:var(--text3);text-align:center;max-width:400px;word-break:break-all}
+
+/* ── Listen Overlay ── */
+.listen-overlay{
+  display:none;position:absolute;inset:0;
+  background:var(--bg);z-index:55;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;padding:40px;
+}
+.listen-overlay.visible{display:flex}
+.listen-ring-wrap{
+  position:relative;width:110px;height:110px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.listen-center{
+  position:absolute;width:64px;height:64px;border-radius:50%;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:24px;
+  box-shadow:0 0 24px rgba(124,58,237,0.5);
+  animation:listenCenterPulse 1.6s ease-in-out infinite;
+}
+@keyframes listenCenterPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.08)}
+}
+.listen-ring{
+  position:absolute;border-radius:50%;
+  border:2px solid var(--primary);
+  opacity:0;
+}
+.listen-ring.ring1{width:70px;height:70px;animation:listenRing 1.8s ease-out infinite}
+.listen-ring.ring2{width:70px;height:70px;animation:listenRing 1.8s ease-out 0.6s infinite}
+.listen-ring.ring3{width:70px;height:70px;animation:listenRing 1.8s ease-out 1.2s infinite}
+@keyframes listenRing{
+  0%{transform:scale(0.5);opacity:0.8}
+  100%{transform:scale(1.7);opacity:0}
+}
+.listen-title{font-size:18px;font-weight:600}
+.listen-status{font-size:12px;color:var(--text3);text-align:center}
+.listen-bar-wrap{
+  width:100%;max-width:300px;height:4px;
+  background:var(--border);border-radius:2px;overflow:hidden;
+}
+.listen-bar-fill{
+  height:100%;width:0%;
+  background:linear-gradient(90deg,var(--primary),var(--accent));
+  border-radius:2px;
+  transition:width 0.2s linear;
+}
 
 /* ── Settings Modal ── */
 .modal-overlay{
@@ -426,6 +496,7 @@ select.setting-input{cursor:pointer;appearance:auto}
       <div class="search-box">
         <i class="fas fa-search"></i>
         <input type="text" id="searchInput" placeholder="Search for a song..." autocomplete="off" spellcheck="false">
+        <button class="listen-btn" id="listenBtn" title="Listen (30s preview)"><i class="fas fa-play"></i></button>
       </div>
       <button class="send-btn" id="sendBtn" title="Download"><i class="fas fa-paper-plane"></i></button>
     </div>
@@ -450,6 +521,19 @@ select.setting-input{cursor:pointer;appearance:auto}
       <div class="dl-step" data-step="done"><span class="step-icon"><i class="fas fa-check-circle"></i></span> Complete!</div>
     </div>
     <div class="dl-detail" id="dlDetail"></div>
+  </div>
+
+  <!-- Listen Overlay -->
+  <div class="listen-overlay" id="listenOverlay">
+    <div class="listen-ring-wrap">
+      <div class="listen-ring ring1"></div>
+      <div class="listen-ring ring2"></div>
+      <div class="listen-ring ring3"></div>
+      <div class="listen-center"><i class="fas fa-music"></i></div>
+    </div>
+    <div class="listen-title" id="listenOverlayTitle">Listening...</div>
+    <div class="listen-status" id="listenOverlayStatus">Capturing audio from your speakers</div>
+    <div class="listen-bar-wrap"><div class="listen-bar-fill" id="listenOverlayBar"></div></div>
   </div>
 
   <!-- Update Overlay -->
@@ -556,6 +640,204 @@ searchInput.addEventListener('keydown', (e) => {
 });
 
 $('sendBtn').addEventListener('click', () => { if (!state.downloading) enterPressed(); });
+
+const listenBtn = $('listenBtn');
+const listenAudio = new Audio();
+let listenToken = 0;
+const LISTEN_MS = 7000;
+
+function listenOverlayShow(title, status) {
+  const o = $('listenOverlay');
+  o.classList.add('visible');
+  if (title) $('listenOverlayTitle').textContent = title;
+  if (status) $('listenOverlayStatus').textContent = status;
+  $('listenOverlayBar').style.width = '0%';
+}
+function listenOverlayHide() {
+  $('listenOverlay').classList.remove('visible');
+  $('listenOverlayBar').style.width = '0%';
+}
+
+function listenReset() {
+  listenBtn.classList.remove('playing');
+  listenBtn.classList.remove('listening');
+  listenBtn.innerHTML = '<i class="fas fa-play"></i>';
+  listenAudio.pause();
+}
+
+function playPreviewTrack(track) {
+  listenBtn.innerHTML = '<i class="fas fa-stop"></i>';
+  listenBtn.classList.add('playing');
+  listenAudio.src = track.previewUrl;
+  listenAudio.onended = listenReset;
+  listenAudio.play().catch(() => listenReset());
+  showToast(`Now playing (${track.source}): ${track.title}`);
+}
+
+async function previewFromQuery(query) {
+  const token = listenToken;
+  listenBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>';
+  const res = await api('/api/preview', { method: 'POST', body: JSON.stringify({ query }) });
+  if (token !== listenToken) return;
+  const track = res && res.track;
+  if (!track || !track.previewUrl) {
+    listenBtn.innerHTML = '<i class="fas fa-play"></i>';
+    showToast('No preview found', 'error');
+    return;
+  }
+  searchInput.value = `${track.artist} - ${track.title}`;
+  searchInput.focus();
+  playPreviewTrack(track);
+}
+
+function floatChunksToS16(chunks, rate) {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const all = new Float32Array(total);
+  let off = 0;
+  for (const c of chunks) { all.set(c, off); off += c.length; }
+  const step = (rate || 16000) / 16000;
+  const outLen = Math.floor(total / step);
+  const pcm = new Int16Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    let v = all[Math.floor(i * step)];
+    if (v > 1) v = 1; else if (v < -1) v = -1;
+    pcm[i] = v < 0 ? (v * 0x8000) | 0 : (v * 0x7fff) | 0;
+  }
+  return pcm;
+}
+
+function int16ToBase64(pcm) {
+  const bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+async function detectFromDesktop() {
+  listenBtn.classList.add('listening');
+  listenBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+  listenOverlayShow('Listening...', 'Capturing audio from your speakers');
+  const recStart = Date.now();
+  const barTimer = setInterval(() => {
+    $('listenOverlayBar').style.width = Math.min(100, ((Date.now() - recStart) / LISTEN_MS) * 100) + '%';
+  }, 100);
+  let stream = null, ctx = null, recorder = null;
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error('Desktop audio capture is not supported in this browser/Electron version');
+    }
+    if (window.electronAPI && window.electronAPI.apiVersion === 'listen-v2') {
+      let ok = false;
+      try { ok = await window.electronAPI.listenCapable(); } catch (_) { ok = false; }
+      if (!ok) throw new Error('Restart needed');
+      console.log('[listen] listen-capable confirmed');
+    } else {
+      console.log('[listen] stale build detected (apiVersion missing)');
+      throw new Error('Restart needed');
+    }
+    console.log('[listen] requesting display media...');
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    console.log('[listen] stream obtained, audio tracks:', stream.getAudioTracks().length);
+    stream.getVideoTracks().forEach(t => t.stop());
+    const audioTracks = stream.getAudioTracks();
+    if (!audioTracks.length) throw new Error('No audio captured');
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    } catch (_) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const rate = ctx.sampleRate;
+    const src = ctx.createMediaStreamSource(new MediaStream(audioTracks));
+    const chunks = [];
+    const workletSrc = `
+      class PCMRecorder extends AudioWorkletProcessor {
+        process(inputs) {
+          const ch = inputs[0] && inputs[0][0];
+          if (ch) this.port.postMessage(ch.slice(0));
+          return true;
+        }
+      }
+      registerProcessor('pcm-recorder', PCMRecorder);
+    `;
+    const workletUrl = URL.createObjectURL(new Blob([workletSrc], { type: 'application/javascript' }));
+    await ctx.audioWorklet.addModule(workletUrl);
+    URL.revokeObjectURL(workletUrl);
+    recorder = new AudioWorkletNode(ctx, 'pcm-recorder');
+    recorder.port.onmessage = (e) => chunks.push(e.data);
+    const silent = ctx.createGain();
+    silent.gain.value = 0;
+    src.connect(recorder);
+    recorder.connect(silent);
+    silent.connect(ctx.destination);
+    await new Promise(r => setTimeout(r, LISTEN_MS));
+    clearInterval(barTimer);
+    $('listenOverlayBar').style.width = '100%';
+    recorder.port.onmessage = null;
+    recorder.disconnect();
+    silent.disconnect();
+    src.disconnect();
+    audioTracks.forEach(t => t.stop());
+    await ctx.close();
+    return floatChunksToS16(chunks, rate);
+  } catch (e) {
+    clearInterval(barTimer);
+    listenOverlayHide();
+    try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch (_) {}
+    try { if (recorder) recorder.disconnect(); } catch (_) {}
+    try { if (ctx) await ctx.close(); } catch (_) {}
+    throw e;
+  }
+}
+
+listenBtn.addEventListener('click', async () => {
+  if (state.busy || state.downloading) return;
+  if (listenBtn.classList.contains('playing')) { listenReset(); return; }
+  const token = ++listenToken;
+  const query = searchInput.value.trim();
+  if (query) { previewFromQuery(query); return; }
+
+  let pcm = null;
+  try {
+    pcm = await detectFromDesktop();
+  } catch (e) {
+    if (token === listenToken) {
+      listenReset();
+      const detail = (e && e.message) ? e.message : (e && e.name ? e.name : '');
+      showToast(detail === 'Restart needed'
+        ? 'Please fully exit the app (tray icon → Exit), then run npm run electron again'
+        : (detail || 'Listening cancelled'), 'error');
+    }
+    return;
+  }
+  if (token !== listenToken) return;
+  if (!pcm || !pcm.length) { listenOverlayHide(); listenReset(); showToast('No audio captured', 'error'); return; }
+
+  listenOverlayShow('Detecting song...', 'Analyzing the audio');
+  listenBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>';
+  const res = await api('/api/recognize', { method: 'POST', body: JSON.stringify({ pcmBase64: int16ToBase64(pcm) }) });
+  if (token !== listenToken) return;
+  listenReset();
+  listenOverlayHide();
+  const track = res && res.track;
+  if (!track || !track.title) { showToast('No match found', 'error'); return; }
+
+  searchInput.value = `${track.artist} - ${track.title}`;
+  searchInput.focus();
+  showToast(`Detected: ${track.title} by ${track.artist}`, 'success');
+
+  const previewRes = await api('/api/preview', { method: 'POST', body: JSON.stringify({ query: `${track.artist} ${track.title}` }) });
+  if (token === listenToken) {
+    const p = previewRes && previewRes.track;
+    if (p && p.previewUrl) playPreviewTrack(p);
+  }
+});
+
+listenAudio.addEventListener('pause', () => { if (!listenAudio.ended) listenReset(); });
 
 searchInput.addEventListener('contextmenu', async (e) => {
   e.preventDefault();
