@@ -334,6 +334,7 @@ app.post('/api/download', async (req, res) => {
         '-o', path.join(getDownloadsDir(), 'temp_audio_') + id,
         '--ffmpeg-location', FFMPEG_PATH,
         '--js-runtimes', 'node',
+        '--extractor-args', 'youtube:player_client=web,mweb,web_safari',
         '--newline', '--progress', '--no-warnings'];
 
       if (sourceFormat && sourceFormat.format_id) {
@@ -544,11 +545,16 @@ app.get('/api/settings', (req, res) => {
 
 app.post('/api/settings', (req, res) => {
   try {
-    const { downloadPath } = req.body;
+    const { downloadPath, minimizeOnStartup } = req.body;
+    const update = {};
     if (downloadPath !== undefined) {
       if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true });
-      saveSettings({ downloadPath });
+      update.downloadPath = downloadPath;
     }
+    if (minimizeOnStartup !== undefined) {
+      update.minimizeOnStartup = !!minimizeOnStartup;
+    }
+    if (Object.keys(update).length) saveSettings(update);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

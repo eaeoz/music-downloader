@@ -192,7 +192,12 @@ function createWindow() {
 
   serverReady.then(() => {
     if (!mainWindow) return;
-    mainWindow.loadURL(`http://127.0.0.1:${PORT}`).catch(err => {
+    mainWindow.loadURL(`http://127.0.0.1:${PORT}`).then(() => {
+      const settings = loadSettings();
+      if (settings && settings.minimizeOnStartup) {
+        mainWindow.hide();
+      }
+    }).catch(err => {
       console.error('[main] loadURL error:', err.message);
       showError('Failed to connect: ' + err.message);
     });

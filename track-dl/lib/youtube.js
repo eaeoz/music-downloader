@@ -113,46 +113,62 @@ function codecLabel(acodec) {
 }
 
 async function getAudioFormats(url) {
-  try {
-    const result = await execPromise(YTDLP_PATH, [
-      url,
-      '--dump-json',
-      '--no-warnings',
-      '--no-playlist',
-      '--js-runtimes', 'node'
-    ]);
+  const tryClients = ['web,mweb,web_safari', 'web'];
 
-    const video = JSON.parse(result.trim().split('\n')[0]);
-    const formats = (video.formats || []).filter(f =>
-      f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')
-    );
+  for (const client of tryClients) {
+    try {
+      const result = await execPromise(YTDLP_PATH, [
+        url,
+        '--dump-json',
+        '--no-warnings',
+        '--no-playlist',
+        '--js-runtimes', 'node',
+        '--extractor-args', `youtube:player_client=${client}`
+      ]);
 
-    const byBitrate = new Map();
-    for (const f of formats) {
-      let bitrate = Math.round(f.abr || f.tbr || 0);
-      if (!bitrate) bitrate = CODEC_DEFAULT_ABR[f.acodec] || null;
-      if (!bitrate) continue;
+      const video = JSON.parse(result.trim().split('\n')[0]);
 
-      const existing = byBitrate.get(bitrate);
-      const rank = CODEC_RANK[f.acodec] || 1;
-      const existingRank = existing ? (CODEC_RANK[existing.acodec] || 1) : 0;
-      if (!existing || rank > existingRank) {
-        const note = f.format_note ? ` · ${f.format_note}` : '';
-        byBitrate.set(bitrate, {
-          format_id: f.format_id,
-          bitrate,
-          acodec: f.acodec,
-          ext: f.audio_ext || f.ext || '',
-          label: `${bitrate} kbps · ${codecLabel(f.acodec)}${note}`
-        });
+      let formats = (video.formats || []).filter(f =>
+        f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none')
+      );
+
+      if (!formats.length) {
+        formats = (video.formats || []).filter(f =>
+          f.acodec && f.acodec !== 'none' && f.format_id === '18'
+        );
       }
-    }
 
-    return [...byBitrate.values()].sort((a, b) => a.bitrate - b.bitrate);
-  } catch (err) {
-    console.error('Error fetching audio formats:', err.message);
-    return [];
+      if (!formats.length) continue;
+
+      const byBitrate = new Map();
+      for (const f of formats) {
+        let bitrate = Math.round(f.abr || f.tbr || 0);
+        if (!bitrate) bitrate = CODEC_DEFAULT_ABR[f.acodec] || null;
+        if (!bitrate) continue;
+
+        const existing = byBitrate.get(bitrate);
+        const rank = CODEC_RANK[f.acodec] || 1;
+        const existingRank = existing ? (CODEC_RANK[existing.acodec] || 1) : 0;
+        if (!existing || rank > existingRank) {
+          const note = f.format_note ? ` · ${f.format_note}` : '';
+          byBitrate.set(bitrate, {
+            format_id: f.format_id,
+            bitrate,
+            acodec: f.acodec,
+            ext: f.audio_ext || f.ext || '',
+            label: `${bitrate} kbps · ${codecLabel(f.acodec)}${note}`
+          });
+        }
+      }
+
+      return [...byBitrate.values()].sort((a, b) => a.bitrate - b.bitrate);
+    } catch {
+      continue;
+    }
   }
+
+  console.error('Error fetching audio formats: no working player client found');
+  return [];
 }
 
 async function downloadYouTubeAudioWithTemp(url, sourceFormatId) {
@@ -166,7 +182,8 @@ async function downloadYouTubeAudioWithTemp(url, sourceFormatId) {
     '--audio-quality', '0',
     '-o', tempFile,
     '--ffmpeg-location', FFMPEG_PATH,
-    '--js-runtimes', 'node'
+    '--js-runtimes', 'node',
+    '--extractor-args', 'youtube:player_client=web,mweb,web_safari'
   ];
 
   if (sourceFormatId) {
