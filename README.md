@@ -245,6 +245,14 @@ Outputs are placed in the `dist/` directory.
 
 ## 📋 Changelog
 
+### v1.0.3 (2026-08-19)
+
+- **New:** Clear input button — quick one-click search bar reset
+- **New:** Minimize on startup setting — auto-start minimized to system tray
+- **Improved:** YouTube player client fallback for better download reliability (`web` → `mweb` → `web_safari`)
+- **Improved:** Audio format detection with fallback to legacy format when no audio-only streams found
+- **Improved:** Packaging — smaller builds with better file exclusions
+
 ### v1.0.1 (2026-08-13)
 
 - **New:** Audio format selection and bitrate options for downloads
